@@ -29,8 +29,15 @@ import {
   setPortsPath,
 } from "./src/scraper/instagram.js";
 
-// Pass the ports path to the scraper module
+import {
+  startProfileScraping,
+  stopProfileScraping,
+  setPortsPath as setProfilePortsPath,
+} from "./src/scraper/instagram-profile-scraper.js";
+
+// Pass the ports path to the scraper modules
 setPortsPath(portsPath);
+setProfilePortsPath(portsPath);
 
 let mainWindow;
 let scrapingInProgress = false;
@@ -228,6 +235,8 @@ ipcMain.handle("clear-results", async () => {
   try {
     const successPath = join(outputPath, "success.json");
     const errorsPath = join(outputPath, "errors.json");
+    const profileSuccessPath = join(outputPath, "profile-success.json");
+    const profileErrorsPath = join(outputPath, "profile-errors.json");
 
     if (fs.existsSync(successPath)) {
       fs.unlinkSync(successPath);
@@ -235,6 +244,14 @@ ipcMain.handle("clear-results", async () => {
 
     if (fs.existsSync(errorsPath)) {
       fs.unlinkSync(errorsPath);
+    }
+
+    if (fs.existsSync(profileSuccessPath)) {
+      fs.unlinkSync(profileSuccessPath);
+    }
+
+    if (fs.existsSync(profileErrorsPath)) {
+      fs.unlinkSync(profileErrorsPath);
     }
 
     return {
@@ -246,6 +263,69 @@ ipcMain.handle("clear-results", async () => {
     return {
       success: false,
       message: `Error: ${error.message}`,
+    };
+  }
+});
+
+// Profile Scraping IPC Handlers
+ipcMain.handle("start-profile-scraping", async (event, username) => {
+  if (scrapingInProgress) {
+    return {
+      success: false,
+      message: "Scraping is already in progress",
+    };
+  }
+
+  try {
+    scrapingInProgress = true;
+
+    const progressCallback = (data) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("scraping-progress", data);
+      }
+    };
+
+    const result = await startProfileScraping(username, progressCallback);
+
+    scrapingInProgress = false;
+
+    return {
+      success: true,
+      data: result.data,
+    };
+  } catch (error) {
+    console.error("Error starting profile scraping:", error);
+    scrapingInProgress = false;
+
+    return {
+      success: false,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+});
+
+ipcMain.handle("stop-profile-scraping", async () => {
+  if (!scrapingInProgress) {
+    return {
+      success: false,
+      message: "No scraping process is currently running",
+    };
+  }
+
+  try {
+    await stopProfileScraping();
+    scrapingInProgress = false;
+
+    return {
+      success: true,
+      message: "Profile scraping stopped successfully",
+    };
+  } catch (error) {
+    console.error("Error stopping profile scraping:", error);
+    return {
+      success: false,
+      message: `Error stopping profile scraping: ${error.message}`,
     };
   }
 });
