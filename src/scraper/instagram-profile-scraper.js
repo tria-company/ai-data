@@ -23,8 +23,8 @@ const RETRY_DELAY = 5000;
 const MAX_PROFILE_RETRIES = 2;
 const PROFILE_TIMEOUT = 30000;
 const DELAY_BETWEEN_PROFILES = 2000;
-const SCROLL_DELAY = 1000;
-const MAX_SCROLL_ATTEMPTS = 50;
+const SCROLL_DELAY = 1500; // Increased for better loading
+const MAX_SCROLL_ATTEMPTS = 200; // Increased to handle large lists
 
 // Global
 let browser = null;
@@ -355,17 +355,21 @@ async function extractUserList(page, username, type = "followers") {
     await page.click(linkSelector);
 
     // Wait for the modal/dialog to appear
-    await delay(3000);
+    sendLog(`Waiting for ${type} modal to load...`, "info");
+    await delay(4000);
 
     // Find the scrollable container in the modal
     const users = [];
-    let previousHeight = 0;
     let scrollAttempts = 0;
+    let noNewUsersCount = 0;
+    const MAX_NO_NEW_USERS = 3; // Stop if no new users after 3 attempts
 
-    sendLog(`Scrolling through ${type} list...`, "info");
+    sendLog(`Starting to scroll through ${type} list...`, "info");
 
     while (scrollAttempts < MAX_SCROLL_ATTEMPTS) {
       if (shouldStop) break;
+
+      const previousCount = users.length;
 
       // Extract usernames from the current view
       const newUsers = await page.evaluate(() => {
@@ -394,34 +398,106 @@ async function extractUserList(page, username, type = "followers") {
         }
       });
 
-      sendLog(`Collected ${users.length} ${type} so far...`, "info");
+      const currentCount = users.length;
+      const newUsersAdded = currentCount - previousCount;
 
-      // Scroll the modal
-      const currentHeight = await page.evaluate(() => {
-        const modal = document.querySelector('div[role="dialog"]');
-        if (modal) {
-          const scrollableDiv = modal.querySelector("div > div > div");
-          if (scrollableDiv) {
-            scrollableDiv.scrollTop = scrollableDiv.scrollHeight;
-            return scrollableDiv.scrollHeight;
-          }
-        }
-        return 0;
-      });
+      if (newUsersAdded === 0) {
+        noNewUsersCount++;
+        sendLog(
+          `No new ${type} found (${noNewUsersCount}/${MAX_NO_NEW_USERS})`,
+          "warning",
+        );
+      } else {
+        noNewUsersCount = 0;
+        sendLog(
+          `Collected ${currentCount} ${type} (+${newUsersAdded} new)`,
+          "info",
+        );
+      }
 
-      await delay(SCROLL_DELAY);
-
-      // Check if we've reached the end
-      if (currentHeight === previousHeight) {
-        sendLog(`Reached end of ${type} list`, "info");
+      // Stop if no new users for several attempts
+      if (noNewUsersCount >= MAX_NO_NEW_USERS) {
+        sendLog(`No new ${type} detected after ${MAX_NO_NEW_USERS} attempts`, "info");
         break;
       }
 
-      previousHeight = currentHeight;
+      // Scroll the modal - try multiple selectors
+      const scrollSuccess = await page.evaluate(() => {
+        const modal = document.querySelector('div[role="dialog"]');
+        if (!modal) return false;
+
+        // Try multiple selectors for the scrollable container
+        const selectors = [
+          "div._aano", // Common Instagram class for scrollable list
+          "div > div > div:nth-child(2)", // Generic selector
+          "div[style*='overflow']", // Any div with overflow style
+        ];
+
+        let scrollableDiv = null;
+
+        // Try to find the scrollable element
+        for (const selector of selectors) {
+          const elements = modal.querySelectorAll(selector);
+          for (const el of elements) {
+            if (el.scrollHeight > el.clientHeight) {
+              scrollableDiv = el;
+              break;
+            }
+          }
+          if (scrollableDiv) break;
+        }
+
+        // If still not found, search all divs in modal
+        if (!scrollableDiv) {
+          const allDivs = modal.querySelectorAll("div");
+          for (const div of allDivs) {
+            if (div.scrollHeight > div.clientHeight) {
+              scrollableDiv = div;
+              break;
+            }
+          }
+        }
+
+        if (scrollableDiv) {
+          // Scroll incrementally instead of jumping to bottom
+          // This helps trigger lazy loading better
+          const currentScroll = scrollableDiv.scrollTop;
+          const scrollStep = 300; // Scroll 300px at a time
+          scrollableDiv.scrollTop = currentScroll + scrollStep;
+
+          // Also scroll to the last element to ensure visibility
+          const lastElement = scrollableDiv.querySelector("div:last-child");
+          if (lastElement) {
+            lastElement.scrollIntoView({ behavior: "smooth", block: "end" });
+          }
+
+          return true;
+        }
+
+        return false;
+      });
+
+      if (!scrollSuccess) {
+        sendLog(`Could not find scrollable element in ${type} modal`, "warning");
+      }
+
+      // Wait for content to load after scroll
+      await delay(SCROLL_DELAY * 1.5);
       scrollAttempts++;
+
+      // Log progress every 5 attempts
+      if (scrollAttempts % 5 === 0) {
+        sendLog(
+          `Scroll progress: ${scrollAttempts}/${MAX_SCROLL_ATTEMPTS} attempts, ${users.length} ${type} collected`,
+          "info",
+        );
+      }
     }
 
+    sendLog(`Finished scrolling after ${scrollAttempts} attempts`, "info");
+
     // Close the modal
+    sendLog(`Closing ${type} modal...`, "info");
     await page.evaluate(() => {
       const closeButton = document.querySelector(
         'div[role="dialog"] button svg[aria-label="Close"], div[role="dialog"] button svg[aria-label="Fechar"]',
@@ -433,10 +509,10 @@ async function extractUserList(page, username, type = "followers") {
 
     await delay(2000);
 
-    sendLog(`Extracted ${users.length} ${type}`, "success");
+    sendLog(`✅ Successfully extracted ${users.length} ${type}`, "success");
     return users;
   } catch (error) {
-    sendLog(`Error extracting ${type}: ${error.message}`, "error");
+    sendLog(`❌ Error extracting ${type}: ${error.message}`, "error");
     return [];
   }
 }
