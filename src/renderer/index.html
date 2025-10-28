@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'self'; script-src 'self'"
+        />
+        <title>Instagram Scraper</title>
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <div class="container">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-content">
+                    <h1>📸 Instagram Profile Scraper</h1>
+                    <p>Extract data from Instagram profiles automatically</p>
+                </div>
+                <div class="header-badge">
+                    <span class="version">v1.0.0</span>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <!-- Left Column: Controls -->
+                <div class="left-column">
+                    <!-- Upload Section -->
+                    <section class="card upload-section">
+                        <div class="card-header">
+                            <h2>1️⃣ Upload CSV File</h2>
+                        </div>
+                        <div class="card-body">
+                            <button id="selectFileBtn" class="btn btn-primary">
+                                <span class="btn-icon">📁</span>
+                                Select CSV File
+                            </button>
+
+                            <div id="fileInfo" class="file-info hidden">
+                                <div class="info-item">
+                                    <span class="info-label">File:</span>
+                                    <span
+                                        id="fileName"
+                                        class="info-value"
+                                    ></span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Accounts:</span>
+                                    <span
+                                        id="accountCount"
+                                        class="info-value badge-primary"
+                                    ></span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Control Section -->
+                    <section class="card control-section">
+                        <div class="card-header">
+                            <h2>2️⃣ Start Scraping</h2>
+                        </div>
+                        <div class="card-body">
+                            <button
+                                id="startBtn"
+                                class="btn btn-success"
+                                disabled
+                            >
+                                <span class="btn-icon">▶️</span>
+                                Start Scraping
+                            </button>
+                            <button id="stopBtn" class="btn btn-danger hidden">
+                                <span class="btn-icon">⏹️</span>
+                                Stop Scraping
+                            </button>
+                        </div>
+                    </section>
+
+                    <!-- Progress Section -->
+                    <section class="card progress-section">
+                        <div class="card-header">
+                            <h2>📊 Progress</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="progress-bar-container">
+                                <div
+                                    id="progressFill"
+                                    class="progress-fill"
+                                ></div>
+                                <span
+                                    id="progressPercentage"
+                                    class="progress-percentage"
+                                    >0%</span
+                                >
+                            </div>
+                            <p id="progressText" class="progress-text">
+                                0 / 0 accounts processed
+                            </p>
+
+                            <div class="stats-grid">
+                                <div class="stat-card stat-success">
+                                    <div class="stat-icon">✅</div>
+                                    <div class="stat-content">
+                                        <div
+                                            class="stat-value"
+                                            id="successCount"
+                                        >
+                                            0
+                                        </div>
+                                        <div class="stat-label">Success</div>
+                                    </div>
+                                </div>
+                                <div class="stat-card stat-error">
+                                    <div class="stat-icon">❌</div>
+                                    <div class="stat-content">
+                                        <div class="stat-value" id="failCount">
+                                            0
+                                        </div>
+                                        <div class="stat-label">Failed</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Results Section -->
+                    <section class="card results-section">
+                        <div class="card-header">
+                            <h2>📂 Results</h2>
+                        </div>
+                        <div class="card-body">
+                            <button
+                                id="openResultsBtn"
+                                class="btn btn-secondary"
+                            >
+                                <span class="btn-icon">📂</span>
+                                Open Results Folder
+                            </button>
+                            <button
+                                id="clearResultsBtn"
+                                class="btn btn-outline"
+                            >
+                                <span class="btn-icon">🗑️</span>
+                                Clear Results
+                            </button>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Right Column: Logs -->
+                <div class="right-column">
+                    <section class="card logs-section">
+                        <div class="card-header">
+                            <h2>📝 Activity Logs</h2>
+                            <button id="clearLogsBtn" class="btn-icon-only">
+                                🗑️
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="logs" class="logs-container"></div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="footer">
+                <p>Created by: Guedes, Hugo | Instagram Scraper © 2025</p>
+            </footer>
+        </div>
+
+        <script src="renderer.js"></script>
+    </body>
+</html>
