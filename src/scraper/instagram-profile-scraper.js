@@ -343,7 +343,7 @@ async function extractProfileStats(page, username) {
 }
 
 // Click on followers/following link and extract usernames
-async function extractUserList(page, username, type = "followers") {
+async function extractUserList(page, username, type = "followers", totalCount = 0) {
   try {
     const linkSelector =
       type === "followers" ? "a[href*='/followers']" : "a[href*='/following']";
@@ -358,6 +358,20 @@ async function extractUserList(page, username, type = "followers") {
     sendLog(`Waiting for ${type} modal to load...`, "info");
     await delay(4000);
 
+    // Calculate dynamic scroll limit based on total count
+    // Instagram loads approximately 12 users per scroll
+    const USERS_PER_SCROLL = 12;
+    const calculatedScrolls = totalCount > 0
+      ? Math.ceil(totalCount / USERS_PER_SCROLL) + 10 // Add 10 extra scrolls as buffer
+      : MAX_SCROLL_ATTEMPTS;
+
+    const dynamicMaxScrolls = Math.min(calculatedScrolls, MAX_SCROLL_ATTEMPTS);
+
+    sendLog(
+      `Target: ${totalCount} ${type} | Estimated scrolls needed: ${calculatedScrolls} | Using: ${dynamicMaxScrolls}`,
+      "info"
+    );
+
     // Find the scrollable container in the modal
     const users = [];
     let scrollAttempts = 0;
@@ -366,7 +380,7 @@ async function extractUserList(page, username, type = "followers") {
 
     sendLog(`Starting to scroll through ${type} list...`, "info");
 
-    while (scrollAttempts < MAX_SCROLL_ATTEMPTS) {
+    while (scrollAttempts < dynamicMaxScrolls) {
       if (shouldStop) break;
 
       const previousCount = users.length;
@@ -487,14 +501,27 @@ async function extractUserList(page, username, type = "followers") {
 
       // Log progress every 5 attempts
       if (scrollAttempts % 5 === 0) {
+        const progress = totalCount > 0
+          ? `${users.length}/${totalCount} (${Math.round((users.length/totalCount)*100)}%)`
+          : `${users.length}`;
         sendLog(
-          `Scroll progress: ${scrollAttempts}/${MAX_SCROLL_ATTEMPTS} attempts, ${users.length} ${type} collected`,
+          `Scroll progress: ${scrollAttempts}/${dynamicMaxScrolls} attempts, ${progress} ${type} collected`,
           "info",
         );
       }
     }
 
     sendLog(`Finished scrolling after ${scrollAttempts} attempts`, "info");
+
+    // Log completion summary
+    if (totalCount > 0) {
+      const percentage = Math.round((users.length / totalCount) * 100);
+      const status = percentage >= 95 ? "✅" : percentage >= 80 ? "⚠️" : "❌";
+      sendLog(
+        `${status} Collected ${users.length}/${totalCount} ${type} (${percentage}%)`,
+        percentage >= 95 ? "success" : percentage >= 80 ? "warning" : "error"
+      );
+    }
 
     // Close the modal
     sendLog(`Closing ${type} modal...`, "info");
@@ -645,9 +672,27 @@ export async function startProfileScraping(targetUsername, callback) {
     // Extract profile stats
     const profileStats = await extractProfileStats(page, username);
 
+    // Convert followers/following counts to numbers for calculation
+    const followersCount = profileStats.followers
+      ? parseInt(profileStats.followers.replace(/[,.\s]/g, ""))
+      : 0;
+    const followingCount = profileStats.following
+      ? parseInt(profileStats.following.replace(/[,.\s]/g, ""))
+      : 0;
+
+    sendLog(
+      `Profile stats: ${followersCount} followers, ${followingCount} following`,
+      "info"
+    );
+
     // Extract followers
     sendLog("Extracting followers list...", "info");
-    const followersList = await extractUserList(page, username, "followers");
+    const followersList = await extractUserList(
+      page,
+      username,
+      "followers",
+      followersCount
+    );
 
     if (shouldStop) {
       sendLog("Scraping stopped by user", "warning");
@@ -659,7 +704,12 @@ export async function startProfileScraping(targetUsername, callback) {
     sendLog("Extracting following list...", "info");
     await page.goto(profileUrl, { waitUntil: "networkidle2" });
     await delay(2000);
-    const followingList = await extractUserList(page, username, "following");
+    const followingList = await extractUserList(
+      page,
+      username,
+      "following",
+      followingCount
+    );
 
     if (shouldStop) {
       sendLog("Scraping stopped by user", "warning");
