@@ -133,7 +133,7 @@ async function extractVideoUrl(page, postUrl, sendLog, username) {
         timeout: 30000,
       });
 
-      await delay(2000);
+      await delay(1500);
 
       // Extrair URL do vídeo
       const videoData = await newPage.evaluate(() => {
@@ -234,7 +234,7 @@ async function extractCarouselImages(page, postUrl, sendLog, username) {
         timeout: 30000,
       });
 
-      await delay(2000);
+      await delay(1500);
 
       // Extrair todas as imagens do carousel
       const carouselData = await newPage.evaluate(() => {
@@ -669,7 +669,7 @@ async function extractPostsData(
           }
 
           // Delay menor entre reels
-          await delay(800);
+          await delay(500);
         } catch (err) {
           sendLog(
             `⚠️ Erro ao processar reel ${post.postId}: ${err.message}`,
@@ -692,7 +692,8 @@ async function extractPostsData(
 
     // Processar carrosséis identificados (limitado para evitar timeout)
     const carousels = posts.filter((p) => p.isCarousel);
-    const MAX_CAROUSELS_TO_PROCESS = 5; // Limite para evitar timeout
+    // Ajustar limite de carrosséis baseado no número de reels processados
+    const MAX_CAROUSELS_TO_PROCESS = reels.length >= 5 ? 3 : 5;
 
     if (carousels.length > 0) {
       const carouselsToProcess = carousels.slice(0, MAX_CAROUSELS_TO_PROCESS);
@@ -746,7 +747,7 @@ async function extractPostsData(
           }
 
           // Delay menor entre carrosséis
-          await delay(1000);
+          await delay(700);
         } catch (err) {
           sendLog(
             `⚠️ Erro ao processar carousel ${post.postId}: ${err.message}`,
