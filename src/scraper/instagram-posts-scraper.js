@@ -117,6 +117,116 @@ async function scrollToBottom(page, sendLog, username, maxPosts = 50) {
   }
 }
 
+async function extractCarouselImages(page, postUrl, sendLog, username) {
+  try {
+    sendLog(`Extraindo imagens do carousel: ${postUrl}`, "info", {
+      account: username,
+    });
+
+    // Abrir post em nova aba
+    const newPage = await page.browser().newPage();
+
+    try {
+      await newPage.goto(postUrl, {
+        waitUntil: "networkidle2",
+        timeout: 30000,
+      });
+
+      await delay(2000);
+
+      // Extrair todas as imagens do carousel
+      const carouselData = await newPage.evaluate(() => {
+        const images = [];
+
+        // Procurar por todas as imagens dentro do carousel
+        const imgElements = document.querySelectorAll(
+          'img[style*="object-fit"], img[srcset]',
+        );
+
+        const seenUrls = new Set();
+
+        for (const img of imgElements) {
+          let url =
+            img.src || img.getAttribute("srcset")?.split(" ")[0] || null;
+
+          // Filtrar apenas imagens de conteúdo (não ícones/avatares)
+          if (
+            url &&
+            !seenUrls.has(url) &&
+            (url.includes("scontent") || url.includes("cdninstagram")) &&
+            !url.includes("44x44") &&
+            !url.includes("150x150")
+          ) {
+            seenUrls.add(url);
+            images.push({
+              url: url,
+              alt: img.alt || "",
+            });
+          }
+        }
+
+        // Se não encontrou imagens, tentar extrair do script JSON
+        if (images.length === 0) {
+          try {
+            const scripts = document.querySelectorAll("script");
+            for (const script of scripts) {
+              if (script.textContent.includes("carousel_media")) {
+                const match = script.textContent.match(
+                  /"carousel_media":\s*\[(.*?)\]/s,
+                );
+                if (match) {
+                  // Extrair URLs de imagens do JSON
+                  const urlMatches = script.textContent.matchAll(
+                    /"display_url":"([^"]+)"/g,
+                  );
+                  for (const urlMatch of urlMatches) {
+                    const url = urlMatch[1].replace(/\\u0026/g, "&");
+                    if (!seenUrls.has(url)) {
+                      seenUrls.add(url);
+                      images.push({
+                        url: url,
+                        alt: "",
+                      });
+                    }
+                  }
+                  break;
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Erro ao extrair do JSON:", e);
+          }
+        }
+
+        return {
+          totalImages: images.length,
+          images: images,
+        };
+      });
+
+      await newPage.close();
+
+      sendLog(
+        `✅ Extraídas ${carouselData.totalImages} imagens do carousel`,
+        "success",
+        {
+          account: username,
+        },
+      );
+
+      return carouselData;
+    } catch (err) {
+      await newPage.close();
+      throw err;
+    }
+  } catch (err) {
+    sendLog(`❌ Erro ao extrair carousel: ${err.message}`, "warning", {
+      account: username,
+    });
+    return { totalImages: 0, images: [] };
+  }
+}
+
 async function extractPostsData(page, username, sendLog, maxPosts = 50) {
   try {
     sendLog("Iniciando extração de dados dos posts", "info", {
@@ -232,6 +342,31 @@ async function extractPostsData(page, username, sendLog, maxPosts = 50) {
       username,
       maxPosts,
     );
+
+    // Processar carousels para extrair todas as imagens
+    sendLog("Processando posts do tipo carousel...", "info", {
+      account: username,
+    });
+
+    for (let i = 0; i < posts.length; i++) {
+      const post = posts[i];
+      if (post.isCarousel) {
+        const carouselData = await extractCarouselImages(
+          page,
+          post.postUrl,
+          sendLog,
+          username,
+        );
+
+        if (carouselData.totalImages > 0) {
+          posts[i].carouselImages = carouselData.images;
+          posts[i].carouselCount = carouselData.totalImages;
+        }
+
+        // Pequeno delay entre requisições para não sobrecarregar
+        await delay(1500);
+      }
+    }
 
     sendLog(`✅ Extraídos ${posts.length} posts com sucesso`, "success", {
       account: username,
@@ -367,5 +502,6 @@ export default {
   scrollToBottom,
   extractPostsData,
   extractProfileStats,
+  extractCarouselImages,
   delay,
 };
