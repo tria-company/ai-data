@@ -5,10 +5,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Gerenciamento de arquivos
   selectCSVFile: () => ipcRenderer.invoke("select-csv-file"),
 
-  // Controle de scraping
+  // Controle de scraping (Posts mode)
   startScraping: () => ipcRenderer.invoke("start-scraping"),
   stopScraping: () => ipcRenderer.invoke("stop-scraping"),
   getScrapingStatus: () => ipcRenderer.invoke("get-scraping-status"),
+
+  // Controle de scraping (Profile mode)
+  startProfileScraping: (username) =>
+    ipcRenderer.invoke("start-profile-scraping", username),
+  stopProfileScraping: () => ipcRenderer.invoke("stop-profile-scraping"),
 
   // Resultados
   openResultsFolder: () => ipcRenderer.invoke("open-results-folder"),

@@ -26,8 +26,27 @@
             <main class="main-content">
                 <!-- Left Column: Controls -->
                 <div class="left-column">
-                    <!-- Upload Section -->
-                    <section class="card upload-section">
+                    <!-- Mode Selection -->
+                    <section class="card mode-section">
+                        <div class="card-header">
+                            <h2>🔧 Scraping Mode</h2>
+                        </div>
+                        <div class="card-body">
+                            <div class="mode-tabs">
+                                <button id="modePostsBtn" class="mode-tab active">
+                                    📄 Posts Scraping
+                                </button>
+                                <button id="modeProfileBtn" class="mode-tab">
+                                    👥 Profile Scraping
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Posts Mode Section -->
+                    <div id="postsMode" class="mode-content">
+                        <!-- Upload Section -->
+                        <section class="card upload-section">
                         <div class="card-header">
                             <h2>1️⃣ Upload CSV File</h2>
                         </div>
@@ -123,6 +142,76 @@
                             </div>
                         </div>
                     </section>
+                    </div>
+                    <!-- End Posts Mode -->
+
+                    <!-- Profile Mode Section -->
+                    <div id="profileMode" class="mode-content hidden">
+                        <!-- Profile Input Section -->
+                        <section class="card profile-input-section">
+                            <div class="card-header">
+                                <h2>1️⃣ Enter Instagram Username</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="input-group">
+                                    <input
+                                        type="text"
+                                        id="profileUsernameInput"
+                                        class="profile-input"
+                                        placeholder="Enter username (without @)"
+                                    />
+                                </div>
+                                <p class="help-text">
+                                    Enter the Instagram username to extract followers and following data
+                                </p>
+                            </div>
+                        </section>
+
+                        <!-- Profile Control Section -->
+                        <section class="card control-section">
+                            <div class="card-header">
+                                <h2>2️⃣ Start Profile Scraping</h2>
+                            </div>
+                            <div class="card-body">
+                                <button
+                                    id="startProfileBtn"
+                                    class="btn btn-success"
+                                    disabled
+                                >
+                                    <span class="btn-icon">▶️</span>
+                                    Start Profile Scraping
+                                </button>
+                                <button id="stopProfileBtn" class="btn btn-danger hidden">
+                                    <span class="btn-icon">⏹️</span>
+                                    Stop Scraping
+                                </button>
+                            </div>
+                        </section>
+
+                        <!-- Profile Progress Section -->
+                        <section class="card progress-section">
+                            <div class="card-header">
+                                <h2>📊 Progress</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="progress-bar-container">
+                                    <div
+                                        id="profileProgressFill"
+                                        class="progress-fill"
+                                    ></div>
+                                    <span
+                                        id="profileProgressPercentage"
+                                        class="progress-percentage"
+                                        >0%</span
+                                    >
+                                </div>
+                                <p id="profileProgressText" class="progress-text">
+                                    Ready to start
+                                </p>
+                            </div>
+                        </section>
+                    </div>
+                    <!-- End Profile Mode -->
 
                     <!-- Results Section -->
                     <section class="card results-section">

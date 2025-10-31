@@ -1,4 +1,4 @@
-// Elementos do DOM
+// Elementos do DOM - Posts Mode
 const selectFileBtn = document.getElementById("selectFileBtn");
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
@@ -18,12 +18,27 @@ const failCount = document.getElementById("failCount");
 
 const logs = document.getElementById("logs");
 
+// Elementos do DOM - Profile Mode
+const modePostsBtn = document.getElementById("modePostsBtn");
+const modeProfileBtn = document.getElementById("modeProfileBtn");
+const postsMode = document.getElementById("postsMode");
+const profileMode = document.getElementById("profileMode");
+
+const profileUsernameInput = document.getElementById("profileUsernameInput");
+const startProfileBtn = document.getElementById("startProfileBtn");
+const stopProfileBtn = document.getElementById("stopProfileBtn");
+
+const profileProgressFill = document.getElementById("profileProgressFill");
+const profileProgressPercentage = document.getElementById("profileProgressPercentage");
+const profileProgressText = document.getElementById("profileProgressText");
+
 // State
 let totalAccounts = 0;
 let processedAccounts = 0;
 let successfulAccounts = 0;
 let failedAccounts = 0;
 let isScrapingInProgress = false;
+let currentMode = "posts"; // "posts" or "profile"
 
 function updateProgress() {
   const percentage =
@@ -216,6 +231,123 @@ clearLogsBtn.addEventListener("click", () => {
   }
 });
 
+// ============================================
+// MODE SWITCHING
+// ============================================
+modePostsBtn.addEventListener("click", () => {
+  currentMode = "posts";
+  modePostsBtn.classList.add("active");
+  modeProfileBtn.classList.remove("active");
+  postsMode.classList.remove("hidden");
+  profileMode.classList.add("hidden");
+  addLog("📄 Switched to Posts Scraping mode", "info");
+});
+
+modeProfileBtn.addEventListener("click", () => {
+  currentMode = "profile";
+  modeProfileBtn.classList.add("active");
+  modePostsBtn.classList.remove("active");
+  profileMode.classList.remove("hidden");
+  postsMode.classList.add("hidden");
+  addLog("👥 Switched to Profile Scraping mode", "info");
+});
+
+// ============================================
+// PROFILE MODE FUNCTIONS
+// ============================================
+function updateProfileProgress(percentage, text) {
+  profileProgressFill.style.width = `${percentage}%`;
+  profileProgressPercentage.textContent = `${Math.round(percentage)}%`;
+  profileProgressText.textContent = text;
+}
+
+function setProfileScrapingState(inProgress) {
+  isScrapingInProgress = inProgress;
+
+  if (inProgress) {
+    startProfileBtn.classList.add("hidden");
+    stopProfileBtn.classList.remove("hidden");
+    profileUsernameInput.disabled = true;
+  } else {
+    startProfileBtn.classList.remove("hidden");
+    stopProfileBtn.classList.add("hidden");
+    profileUsernameInput.disabled = false;
+  }
+}
+
+// Enable/disable profile start button based on input
+profileUsernameInput.addEventListener("input", (e) => {
+  const username = e.target.value.trim();
+  startProfileBtn.disabled = username.length === 0;
+});
+
+// Start profile scraping
+startProfileBtn.addEventListener("click", async () => {
+  try {
+    const username = profileUsernameInput.value.trim();
+    if (!username) {
+      addLog("❌ Please enter a username", "error");
+      return;
+    }
+
+    setProfileScrapingState(true);
+    updateProfileProgress(0, "Starting...");
+
+    addLog("🚀 Starting profile scraping...", "info");
+    addLog(`👤 Target profile: @${username}`, "info");
+    addLog("=".repeat(60), "info");
+
+    const result = await window.electronAPI.startProfileScraping(username);
+
+    if (result.success) {
+      addLog("=".repeat(60), "info");
+      addLog("✅ Profile scraping completed successfully!", "success");
+      addLog(
+        `📊 Collected ${result.data.followers.profiles.length} followers`,
+        "success",
+      );
+      addLog(
+        `📊 Collected ${result.data.following.profiles.length} following`,
+        "success",
+      );
+      updateProfileProgress(100, "Completed!");
+    } else {
+      addLog(`❌ Profile scraping failed: ${result.message}`, "error");
+      if (result.stack) {
+        console.error(result.stack);
+      }
+      updateProfileProgress(0, "Failed");
+    }
+
+    setProfileScrapingState(false);
+  } catch (error) {
+    addLog(`❌ Critical error: ${error.message}`, "error");
+    console.error(error);
+    setProfileScrapingState(false);
+    updateProfileProgress(0, "Error");
+  }
+});
+
+// Stop profile scraping
+stopProfileBtn.addEventListener("click", async () => {
+  try {
+    addLog("⏹️ Stopping profile scraping...", "warning");
+    const result = await window.electronAPI.stopProfileScraping();
+
+    if (result.success) {
+      addLog("✅ Profile scraping stopped successfully", "success");
+    } else {
+      addLog(`⚠️ ${result.message}`, "warning");
+    }
+
+    setProfileScrapingState(false);
+    updateProfileProgress(0, "Stopped");
+  } catch (error) {
+    addLog(`❌ Error stopping profile scraping: ${error.message}`, "error");
+    setProfileScrapingState(false);
+  }
+});
+
 // Listener real do Main Process
 window.electronAPI.onScrapingProgress((data) => {
   switch (data.type) {
@@ -224,8 +356,18 @@ window.electronAPI.onScrapingProgress((data) => {
       break;
 
     case "progress":
-      processedAccounts = data.processed;
-      updateProgress();
+      if (currentMode === "posts") {
+        processedAccounts = data.processed;
+        updateProgress();
+      } else if (currentMode === "profile" && data.stage) {
+        // Profile scraping progress
+        const percentage = (data.processed / data.total) * 100;
+        const stage = data.stage === "followers" ? "Followers" : "Following";
+        updateProfileProgress(
+          percentage / 2 + (data.stage === "following" ? 50 : 0),
+          `Processing ${stage}: ${data.processed}/${data.total}`,
+        );
+      }
       break;
 
     case "account-success":
