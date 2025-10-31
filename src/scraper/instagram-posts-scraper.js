@@ -514,16 +514,61 @@ async function extractPostsData(
       maxPosts,
     );
 
-    // DESABILITADO: Processamento detalhado de carrosséis (causava timeout)
-    // Carrosséis são identificados com isCarousel=true mas não extraímos as mídias individuais
-    // para evitar timeouts. A URL do post pode ser usada para extração posterior se necessário.
-    // Para processar carrosséis, use extractCarouselImages() ou extractCarouselMedia() manualmente.
-    const carouselCount = posts.filter((p) => p.isCarousel).length;
+    // Processar carrosséis identificados
+    const carousels = posts.filter((p) => p.isCarousel);
 
-    if (carouselCount > 0) {
+    if (carousels.length > 0) {
       sendLog(
-        `🎠 Identificados ${carouselCount} carrosséis (extração detalhada desabilitada para evitar timeout)`,
+        `🎠 Identificados ${carousels.length} carrosséis - iniciando extração detalhada`,
         "info",
+        {
+          account: username,
+        },
+      );
+
+      // Processar cada carousel
+      for (const post of carousels) {
+        try {
+          sendLog(`Processando carousel: ${post.postUrl}`, "info", {
+            account: username,
+          });
+
+          const carouselData = await extractCarouselImages(
+            page,
+            post.postUrl,
+            sendLog,
+            username,
+          );
+
+          if (carouselData && carouselData.images.length > 0) {
+            post.carouselCount = carouselData.totalImages;
+            post.carouselImages = carouselData.images;
+
+            sendLog(
+              `✅ Carousel processado: ${carouselData.totalImages} imagens`,
+              "success",
+              {
+                account: username,
+              },
+            );
+          }
+
+          // Delay entre carrosséis para evitar sobrecarga
+          await delay(1500);
+        } catch (err) {
+          sendLog(
+            `⚠️ Erro ao processar carousel ${post.postId}: ${err.message}`,
+            "warning",
+            {
+              account: username,
+            },
+          );
+        }
+      }
+
+      sendLog(
+        `✅ Processamento de carrosséis finalizado`,
+        "success",
         {
           account: username,
         },
