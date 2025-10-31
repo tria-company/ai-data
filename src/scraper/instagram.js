@@ -271,7 +271,13 @@ async function attemptLogin(page, retryCount = 0) {
 }
 
 // Função para processar uma conta
-async function processAccount(page, account, index, total) {
+async function processAccount(
+  page,
+  account,
+  index,
+  total,
+  abortController = null,
+) {
   try {
     const username = account.replace("@", "").trim();
     const profileUrl = `${INSTAGRAM_URL}${username}`;
@@ -313,6 +319,8 @@ async function processAccount(page, account, index, total) {
     // Extrair número de posts
     scrapedData.postsCount = await extractPostsCount(page, sendLog, username);
 
+    // todo: extrair stories
+
     try {
       if (!isPrivate) {
         await scrollToBottom(page, sendLog, username, MAX_POSTS_PER_ACCOUNT);
@@ -322,6 +330,7 @@ async function processAccount(page, account, index, total) {
           username,
           sendLog,
           MAX_POSTS_PER_ACCOUNT,
+          abortController?.signal,
         );
 
         scrapedData.posts = {
@@ -382,13 +391,16 @@ async function processAccountWithRetry(
       "info",
     );
 
+    // Cria AbortController para cancelar operações em caso de timeout
+    const abortController = new AbortController();
+
     const result = await Promise.race([
-      processAccount(page, account, index, total),
+      processAccount(page, account, index, total, abortController),
       new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new Error("Account processing timeout")),
-          ACCOUNT_TIMEOUT,
-        ),
+        setTimeout(() => {
+          abortController.abort(); // Sinaliza cancelamento
+          reject(new Error("Account processing timeout"));
+        }, ACCOUNT_TIMEOUT),
       ),
     ]);
 
@@ -476,6 +488,14 @@ export async function startScraping(callback) {
     if (!fs.existsSync(userDataDir)) {
       fs.mkdirSync(userDataDir, { recursive: true });
       sendLog(`Created directory at ${userDataDir}`, "info");
+    }
+
+    // todo: delete older output file
+    const outputDir = join(portsPath, "output");
+    const outputFilePath = join(outputDir, "success.json");
+    if (fs.existsSync(outputFilePath)) {
+      fs.unlinkSync(outputFilePath);
+      sendLog(`Deleted older output file at ${outputFilePath}`, "info");
     }
 
     sendLog("Launching browser...", "info");
