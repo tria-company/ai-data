@@ -117,6 +117,107 @@ async function scrollToBottom(page, sendLog, username, maxPosts = 50) {
   }
 }
 
+// Extração de URL de vídeo para reels/videos
+async function extractVideoUrl(page, postUrl, sendLog, username) {
+  try {
+    sendLog(`Extraindo URL do vídeo: ${postUrl}`, "info", {
+      account: username,
+    });
+
+    // Abrir post em nova aba
+    const newPage = await page.browser().newPage();
+
+    try {
+      await newPage.goto(postUrl, {
+        waitUntil: "networkidle2",
+        timeout: 30000,
+      });
+
+      await delay(2000);
+
+      // Extrair URL do vídeo
+      const videoData = await newPage.evaluate(() => {
+        // Procurar pela tag video
+        const videoElement = document.querySelector("video");
+
+        if (videoElement) {
+          // Tentar pegar o src direto
+          let videoUrl = videoElement.src || null;
+
+          // Se não tiver src direto, procurar no source
+          if (!videoUrl || videoUrl.startsWith("blob:")) {
+            const sourceElement = videoElement.querySelector("source");
+            if (sourceElement) {
+              videoUrl = sourceElement.src;
+            }
+          }
+
+          // Se ainda for blob, tentar extrair do HTML ou atributos
+          if (videoUrl && videoUrl.startsWith("blob:")) {
+            // Procurar no dataset ou outros atributos
+            const dataSrc = videoElement.getAttribute("data-src") ||
+                           videoElement.getAttribute("data-video-url");
+            if (dataSrc) {
+              videoUrl = dataSrc;
+            }
+          }
+
+          return {
+            videoUrl: videoUrl,
+            poster: videoElement.poster || null,
+            width: videoElement.videoWidth || null,
+            height: videoElement.videoHeight || null,
+          };
+        }
+
+        // Se não encontrou video element, tentar buscar nos scripts JSON
+        try {
+          const scripts = document.querySelectorAll("script");
+          for (const script of scripts) {
+            if (script.textContent.includes("video_url")) {
+              const match = script.textContent.match(/"video_url":"([^"]+)"/);
+              if (match) {
+                return {
+                  videoUrl: match[1].replace(/\\u0026/g, "&"),
+                  poster: null,
+                  width: null,
+                  height: null,
+                };
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Erro ao extrair video_url do JSON:", e);
+        }
+
+        return null;
+      });
+
+      await newPage.close();
+
+      if (videoData && videoData.videoUrl) {
+        sendLog(`✅ URL do vídeo extraída com sucesso`, "success", {
+          account: username,
+        });
+        return videoData;
+      } else {
+        sendLog(`⚠️ Não foi possível extrair URL do vídeo`, "warning", {
+          account: username,
+        });
+        return null;
+      }
+    } catch (err) {
+      await newPage.close();
+      throw err;
+    }
+  } catch (err) {
+    sendLog(`❌ Erro ao extrair URL do vídeo: ${err.message}`, "warning", {
+      account: username,
+    });
+    return null;
+  }
+}
+
 // Extração de carousel abrindo em nova aba (método alternativo)
 async function extractCarouselImages(page, postUrl, sendLog, username) {
   try {
@@ -514,6 +615,81 @@ async function extractPostsData(
       maxPosts,
     );
 
+    // Processar reels/videos identificados para extrair URL do vídeo
+    const reels = posts.filter((p) => p.mediaType === "reel");
+    const MAX_REELS_TO_PROCESS = 10; // Limite para evitar timeout
+
+    if (reels.length > 0) {
+      const reelsToProcess = reels.slice(0, MAX_REELS_TO_PROCESS);
+      const skippedCount = reels.length - reelsToProcess.length;
+
+      sendLog(
+        `🎬 Identificados ${reels.length} reels/vídeos - processando ${reelsToProcess.length} primeiros${skippedCount > 0 ? ` (${skippedCount} ignorados para evitar timeout)` : ""}`,
+        "info",
+        {
+          account: username,
+        },
+      );
+
+      // Processar cada reel
+      for (const post of reelsToProcess) {
+        // Verificar se foi abortado antes de processar cada reel
+        if (abortSignal?.aborted) {
+          sendLog(
+            "⚠️ Processamento de reels cancelado por timeout",
+            "warning",
+            {
+              account: username,
+            },
+          );
+          break;
+        }
+
+        try {
+          sendLog(`Processando reel: ${post.postUrl}`, "info", {
+            account: username,
+          });
+
+          const videoData = await extractVideoUrl(
+            page,
+            post.postUrl,
+            sendLog,
+            username,
+          );
+
+          if (videoData && videoData.videoUrl) {
+            post.videoUrl = videoData.videoUrl;
+            post.videoPoster = videoData.poster;
+            post.videoWidth = videoData.width;
+            post.videoHeight = videoData.height;
+
+            sendLog(`✅ Reel processado: URL do vídeo extraída`, "success", {
+              account: username,
+            });
+          }
+
+          // Delay menor entre reels
+          await delay(800);
+        } catch (err) {
+          sendLog(
+            `⚠️ Erro ao processar reel ${post.postId}: ${err.message}`,
+            "warning",
+            {
+              account: username,
+            },
+          );
+        }
+      }
+
+      sendLog(
+        `✅ Processamento de reels finalizado (${reelsToProcess.length}/${reels.length})`,
+        "success",
+        {
+          account: username,
+        },
+      );
+    }
+
     // Processar carrosséis identificados (limitado para evitar timeout)
     const carousels = posts.filter((p) => p.isCarousel);
     const MAX_CAROUSELS_TO_PROCESS = 5; // Limite para evitar timeout
@@ -727,5 +903,6 @@ export default {
   extractCarouselMedia,
   extractProfileStats,
   extractCarouselImages,
+  extractVideoUrl,
   delay,
 };
