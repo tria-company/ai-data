@@ -117,6 +117,7 @@ async function scrollToBottom(page, sendLog, username, maxPosts = 50) {
   }
 }
 
+// Extração de carousel abrindo em nova aba (método alternativo)
 async function extractCarouselImages(page, postUrl, sendLog, username) {
   try {
     sendLog(`Extraindo imagens do carousel: ${postUrl}`, "info", {
@@ -227,11 +228,181 @@ async function extractCarouselImages(page, postUrl, sendLog, username) {
   }
 }
 
-async function extractPostsData(page, username, sendLog, maxPosts = 50) {
+// Extração de carousel navegando pelos botões (método mais robusto)
+async function extractCarouselMedia(page, postUrl, sendLog) {
+  try {
+    const carouselMedia = await page.evaluate(() => {
+      const media = [];
+
+      // Procura por botão "Próximo" para identificar carrossel
+      const nextButton = document.querySelector(
+        'button[aria-label*="Próximo"], button[aria-label*="Next"]',
+      );
+
+      if (!nextButton) {
+        // Não é carrossel ou tem apenas 1 item
+        return null;
+      }
+
+      // Extrai o item atual
+      const extractCurrentMedia = () => {
+        // Procura por vídeo primeiro
+        const video = document.querySelector("article video");
+        if (video) {
+          return {
+            type: "video",
+            url: video.src || video.querySelector("source")?.src,
+            poster: video.poster,
+            width: video.videoWidth || null,
+            height: video.videoHeight || null,
+          };
+        }
+
+        // Se não for vídeo, procura por imagem
+        const img = document.querySelector(
+          'article img[srcset], article img[src]:not([alt*="foto do perfil"]):not([alt*="profile picture"])',
+        );
+        if (img) {
+          // Tenta pegar a URL de maior resolução do srcset
+          let url = img.src;
+          const srcset = img.getAttribute("srcset");
+          if (srcset) {
+            const urls = srcset.split(",").map((s) => s.trim().split(" "));
+            // Pega a última URL (geralmente a de maior resolução)
+            url = urls[urls.length - 1][0] || url;
+          }
+
+          return {
+            type: "image",
+            url: url,
+            alt: img.alt,
+            width: img.naturalWidth || null,
+            height: img.naturalHeight || null,
+          };
+        }
+
+        return null;
+      };
+
+      // Extrai a primeira mídia
+      const firstMedia = extractCurrentMedia();
+      if (firstMedia) {
+        media.push({ ...firstMedia, position: 1 });
+      }
+
+      return { items: media, hasNext: true };
+    });
+
+    if (!carouselMedia || !carouselMedia.hasNext) {
+      return null;
+    }
+
+    const allMedia = [...carouselMedia.items];
+
+    // Navega pelos próximos itens do carrossel
+    let position = 2;
+    const MAX_CAROUSEL_ITEMS = 10; // Instagram permite até 10 itens
+
+    while (position <= MAX_CAROUSEL_ITEMS) {
+      try {
+        // Clica no botão "Próximo"
+        const hasNext = await page.evaluate(() => {
+          const nextBtn = document.querySelector(
+            'button[aria-label*="Próximo"], button[aria-label*="Next"]',
+          );
+          if (nextBtn && !nextBtn.disabled) {
+            nextBtn.click();
+            return true;
+          }
+          return false;
+        });
+
+        if (!hasNext) break;
+
+        await delay(800); // Aguarda carregar nova mídia
+
+        // Extrai a mídia atual
+        const mediaItem = await page.evaluate((pos) => {
+          // Procura por vídeo
+          const video = document.querySelector("article video");
+          if (video) {
+            return {
+              type: "video",
+              url: video.src || video.querySelector("source")?.src,
+              poster: video.poster,
+              width: video.videoWidth || null,
+              height: video.videoHeight || null,
+              position: pos,
+            };
+          }
+
+          // Procura por imagem
+          const img = document.querySelector(
+            'article img[srcset], article img[src]:not([alt*="foto do perfil"]):not([alt*="profile picture"])',
+          );
+          if (img) {
+            let url = img.src;
+            const srcset = img.getAttribute("srcset");
+            if (srcset) {
+              const urls = srcset.split(",").map((s) => s.trim().split(" "));
+              url = urls[urls.length - 1][0] || url;
+            }
+
+            return {
+              type: "image",
+              url: url,
+              alt: img.alt,
+              width: img.naturalWidth || null,
+              height: img.naturalHeight || null,
+              position: pos,
+            };
+          }
+
+          return null;
+        }, position);
+
+        if (mediaItem && !allMedia.find((m) => m.url === mediaItem.url)) {
+          allMedia.push(mediaItem);
+        } else if (!mediaItem) {
+          break; // Não encontrou mais mídia
+        }
+
+        position++;
+      } catch (err) {
+        console.error(
+          `Erro ao navegar carrossel posição ${position}:`,
+          err.message,
+        );
+        break;
+      }
+    }
+
+    return allMedia.length > 0 ? allMedia : null;
+  } catch (err) {
+    sendLog(`Erro ao extrair mídia do carrossel: ${err.message}`, "warning");
+    return null;
+  }
+}
+
+async function extractPostsData(
+  page,
+  username,
+  sendLog,
+  maxPosts = 50,
+  abortSignal = null,
+) {
   try {
     sendLog("Iniciando extração de dados dos posts", "info", {
       account: username,
     });
+
+    // Verifica se foi abortado
+    if (abortSignal?.aborted) {
+      sendLog("⚠️ Extração cancelada por timeout", "warning", {
+        account: username,
+      });
+      return [];
+    }
 
     const posts = await page.evaluate(
       (user, max) => {
@@ -343,29 +514,20 @@ async function extractPostsData(page, username, sendLog, maxPosts = 50) {
       maxPosts,
     );
 
-    // Processar carousels para extrair todas as imagens
-    sendLog("Processando posts do tipo carousel...", "info", {
-      account: username,
-    });
+    // DESABILITADO: Processamento detalhado de carrosséis (causava timeout)
+    // Carrosséis são identificados com isCarousel=true mas não extraímos as mídias individuais
+    // para evitar timeouts. A URL do post pode ser usada para extração posterior se necessário.
+    // Para processar carrosséis, use extractCarouselImages() ou extractCarouselMedia() manualmente.
+    const carouselCount = posts.filter((p) => p.isCarousel).length;
 
-    for (let i = 0; i < posts.length; i++) {
-      const post = posts[i];
-      if (post.isCarousel) {
-        const carouselData = await extractCarouselImages(
-          page,
-          post.postUrl,
-          sendLog,
-          username,
-        );
-
-        if (carouselData.totalImages > 0) {
-          posts[i].carouselImages = carouselData.images;
-          posts[i].carouselCount = carouselData.totalImages;
-        }
-
-        // Pequeno delay entre requisições para não sobrecarregar
-        await delay(1500);
-      }
+    if (carouselCount > 0) {
+      sendLog(
+        `🎠 Identificados ${carouselCount} carrosséis (extração detalhada desabilitada para evitar timeout)`,
+        "info",
+        {
+          account: username,
+        },
+      );
     }
 
     sendLog(`✅ Extraídos ${posts.length} posts com sucesso`, "success", {
@@ -501,6 +663,7 @@ export default {
   checkIfPrivate,
   scrollToBottom,
   extractPostsData,
+  extractCarouselMedia,
   extractProfileStats,
   extractCarouselImages,
   delay,

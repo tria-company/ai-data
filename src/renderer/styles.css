@@ -487,6 +487,84 @@ body {
     margin-top: 24px;
 }
 
+/* ============================================
+   MODE TABS
+   ============================================ */
+.mode-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.mode-tab {
+    padding: 12px 20px;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+}
+
+.mode-tab:hover {
+    background: var(--bg-primary);
+    border-color: var(--primary-color);
+}
+
+.mode-tab.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.mode-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.mode-content.hidden {
+    display: none;
+}
+
+/* ============================================
+   PROFILE INPUT
+   ============================================ */
+.input-group {
+    margin-bottom: 12px;
+}
+
+.profile-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.profile-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.profile-input::placeholder {
+    color: var(--text-muted);
+}
+
+.help-text {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 8px;
+}
+
 .hidden {
     display: none !important;
 }
