@@ -55,7 +55,10 @@ A função foi atualizada para:
 
 ## Performance
 
-- Delay de 1.5 segundos entre cada carousel para evitar rate limiting
+- **Limite de carrosséis**: Processa apenas os primeiros 5 carrosséis por conta para evitar timeout
+- **Delay otimizado**: 1 segundo entre cada carousel para evitar rate limiting
+- **Timeout aumentado**: 120 segundos (2 minutos) por conta para permitir processamento completo
+- **Verificação de abort**: Verifica o `abortSignal` antes de processar cada carousel
 - Usa abas separadas que são fechadas após extração
 - Processamento sequencial para manter controle e evitar sobrecarga
 
@@ -103,9 +106,11 @@ Para testar a funcionalidade:
 
 ## Limitações
 
+- **Limite de 5 carrosséis**: Apenas os primeiros 5 carrosséis são processados detalhadamente por conta para evitar timeout
 - Requer que o post seja aberto em nova aba (aumenta tempo de processamento)
 - Pode ser afetado por mudanças na estrutura HTML do Instagram
-- Delay fixo de 1.5s pode precisar ajuste baseado em testes de uso real
+- Contas com muitos carrosséis terão apenas os primeiros processados
+- Para processar mais carrosséis, ajuste a constante `MAX_CAROUSELS_TO_PROCESS` em `instagram-posts-scraper.js:519`
 
 ## Próximos Passos
 

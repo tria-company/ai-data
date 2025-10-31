@@ -514,12 +514,16 @@ async function extractPostsData(
       maxPosts,
     );
 
-    // Processar carrosséis identificados
+    // Processar carrosséis identificados (limitado para evitar timeout)
     const carousels = posts.filter((p) => p.isCarousel);
+    const MAX_CAROUSELS_TO_PROCESS = 5; // Limite para evitar timeout
 
     if (carousels.length > 0) {
+      const carouselsToProcess = carousels.slice(0, MAX_CAROUSELS_TO_PROCESS);
+      const skippedCount = carousels.length - carouselsToProcess.length;
+
       sendLog(
-        `🎠 Identificados ${carousels.length} carrosséis - iniciando extração detalhada`,
+        `🎠 Identificados ${carousels.length} carrosséis - processando ${carouselsToProcess.length} primeiros${skippedCount > 0 ? ` (${skippedCount} ignorados para evitar timeout)` : ""}`,
         "info",
         {
           account: username,
@@ -527,7 +531,19 @@ async function extractPostsData(
       );
 
       // Processar cada carousel
-      for (const post of carousels) {
+      for (const post of carouselsToProcess) {
+        // Verificar se foi abortado antes de processar cada carousel
+        if (abortSignal?.aborted) {
+          sendLog(
+            "⚠️ Processamento de carrosséis cancelado por timeout",
+            "warning",
+            {
+              account: username,
+            },
+          );
+          break;
+        }
+
         try {
           sendLog(`Processando carousel: ${post.postUrl}`, "info", {
             account: username,
@@ -553,8 +569,8 @@ async function extractPostsData(
             );
           }
 
-          // Delay entre carrosséis para evitar sobrecarga
-          await delay(1500);
+          // Delay menor entre carrosséis
+          await delay(1000);
         } catch (err) {
           sendLog(
             `⚠️ Erro ao processar carousel ${post.postId}: ${err.message}`,
@@ -567,7 +583,7 @@ async function extractPostsData(
       }
 
       sendLog(
-        `✅ Processamento de carrosséis finalizado`,
+        `✅ Processamento de carrosséis finalizado (${carouselsToProcess.length}/${carousels.length})`,
         "success",
         {
           account: username,

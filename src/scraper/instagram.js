@@ -26,7 +26,7 @@ const MAX_LOGIN_RETRIES = 3;
 const MAX_POSTS_PER_ACCOUNT = 50;
 const RETRY_DELAY = 5000;
 const MAX_ACCOUNT_RETRIES = 2;
-const ACCOUNT_TIMEOUT = 60000;
+const ACCOUNT_TIMEOUT = 120000; // Aumentado para 120s (2 minutos) para permitir processamento de carrosséis
 const DELAY_BETWEEN_ACCOUNTS = 3000;
 
 // global
