@@ -1,63 +1,31 @@
 {
-  "name": "social-media-extraction-api",
-  "version": "1.0.0",
-  "description": "Instagram Profile Scraper - Desktop Application",
-  "main": "main.js",
-  "type": "module",
+  "name": "migration_app",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
-    "setup": "node setup.js",
-    "start": "electron .",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win",
-    "build:linux": "electron-builder --linux",
-    "build:all": "electron-builder -mwl"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/hrguedes/social-media-extraction-api.git"
-  },
-  "keywords": [
-    "SOCIALMEDIA",
-    "SCRAPING"
-  ],
-  "author": "Guedes, Hugo",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/hrguedes/social-media-extraction-api/issues"
-  },
-  "homepage": "https://github.com/hrguedes/social-media-extraction-api#readme",
   "dependencies": {
+    "@sparticuz/chromium": "^143.0.4",
+    "@supabase/supabase-js": "^2.91.0",
     "dotenv": "^17.2.3",
-    "puppeteer": "^24.26.1",
-    "puppeteer-core": "^24.26.1"
+    "lucide-react": "^0.562.0",
+    "next": "16.1.4",
+    "puppeteer-core": "^24.35.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
   },
   "devDependencies": {
-    "electron": "^31.0.0",
-    "electron-builder": "^24.0.0"
-  },
-  "build": {
-    "appId": "com.instagram.scraper",
-    "productName": "Instagram Scraper",
-    "directories": {
-      "output": "dist"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "src/**/*",
-      "package.json"
-    ],
-    "mac": {
-      "category": "public.app-category.productivity",
-      "icon": "build/icon.icns"
-    },
-    "win": {
-      "target": "nsis",
-      "icon": "build/icon.ico"
-    },
-    "linux": {
-      "target": "AppImage",
-      "category": "Utility"
-    }
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.4",
+    "tailwindcss": "^4",
+    "typescript": "^5"
   }
 }

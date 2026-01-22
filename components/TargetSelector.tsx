@@ -1,0 +1,110 @@
+
+import React, { useEffect, useState } from 'react';
+import { Target, CheckSquare, Square } from 'lucide-react';
+
+interface TargetUser {
+    id: number;
+    user: string;
+    status: string;
+    data_ultimo_scrapping: string | null;
+}
+
+interface TargetSelectorProps {
+    onSelectionChange: (selectedIds: number[]) => void;
+}
+
+export default function TargetSelector({ onSelectionChange }: TargetSelectorProps) {
+    const [targets, setTargets] = useState<TargetUser[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [selected, setSelected] = useState<Set<number>>(new Set());
+
+    useEffect(() => {
+        // Fetch up to 1000 targets to support "Select All" on a larger set
+        fetch('/api/targets/list?limit=1000')
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    setTargets(data);
+                } else {
+                    console.error("API response is not an array:", data);
+                }
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error(err);
+                setLoading(false);
+            });
+    }, []);
+
+    useEffect(() => {
+        onSelectionChange(Array.from(selected));
+    }, [selected, onSelectionChange]);
+
+    const toggleSelect = (id: number) => {
+        const newSelected = new Set(selected);
+        if (newSelected.has(id)) {
+            newSelected.delete(id);
+        } else {
+            newSelected.add(id);
+        }
+        setSelected(newSelected);
+    };
+
+    const toggleAll = () => {
+        if (selected.size === targets.length) {
+            setSelected(new Set());
+        } else {
+            setSelected(new Set(targets.map(t => t.id)));
+        }
+    };
+
+    const getStatusColor = (status: string) => {
+        switch (status) {
+            case 'completed': return 'text-green-400';
+            case 'failed': return 'text-red-400';
+            case 'scraping': return 'text-yellow-400';
+            default: return 'text-gray-400';
+        }
+    };
+
+    if (loading) return <div>Loading targets...</div>;
+
+    return (
+        <div className="space-y-2">
+            <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-300">
+                    Alvos ({selected.size}/{targets.length})
+                </label>
+                <button onClick={toggleAll} className="text-xs text-blue-400 hover:text-blue-300">
+                    {selected.size === targets.length ? 'Desmarcar todos' : 'Marcar todos'}
+                </button>
+            </div>
+
+            <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-lg bg-gray-900/50 p-2 space-y-1">
+                {targets.map(target => (
+                    <div
+                        key={target.id}
+                        onClick={() => toggleSelect(target.id)}
+                        className={`flex items-center justify-between p-2 rounded cursor-pointer hover:bg-gray-800
+              ${selected.has(target.id) ? 'bg-gray-800' : ''}`}
+                    >
+                        <div className="flex items-center gap-2">
+                            {selected.has(target.id)
+                                ? <CheckSquare className="h-4 w-4 text-blue-500" />
+                                : <Square className="h-4 w-4 text-gray-500" />
+                            }
+                            <span className="text-sm font-mono">{target.user}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs">
+                            <span className={getStatusColor(target.status)}>{target.status}</span>
+                            <span className="text-gray-600">
+                                {target.data_ultimo_scrapping ? new Date(target.data_ultimo_scrapping).toISOString().split('T')[0] : '-'}
+                            </span>
+                        </div>
+                    </div>
+                ))}
+                {targets.length === 0 && <div className="p-4 text-center text-gray-500">Nenhum alvo encontrado.</div>}
+            </div>
+        </div>
+    );
+}

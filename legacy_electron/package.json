@@ -1,0 +1,63 @@
+{
+  "name": "social-media-extraction-api",
+  "version": "1.0.0",
+  "description": "Instagram Profile Scraper - Desktop Application",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "setup": "node setup.js",
+    "start": "electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder -mwl"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hrguedes/social-media-extraction-api.git"
+  },
+  "keywords": [
+    "SOCIALMEDIA",
+    "SCRAPING"
+  ],
+  "author": "Guedes, Hugo",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hrguedes/social-media-extraction-api/issues"
+  },
+  "homepage": "https://github.com/hrguedes/social-media-extraction-api#readme",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "puppeteer": "^24.26.1",
+    "puppeteer-core": "^24.26.1"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.instagram.scraper",
+    "productName": "Instagram Scraper",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    }
+  }
+}
