@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📸 Instagram Scraper & Archive
 
-## Getting Started
+Este projeto é uma aplicação web desenvolvida em **Next.js** para realizar o scraping automatizado de perfis do Instagram, coletando posts, mídias (fotos e vídeos de Reels/Carrosséis) e armazenando-os em um banco de dados **Supabase**.
 
-First, run the development server:
+A aplicação foi otimizada para rodar em ambientes **Serverless** (como Vercel) utilizando **Puppeteer Core** e **@sparticuz/chromium**, com mecanismos robustos de login e evasão de detecção.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Funcionalidades
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 🔐 Autenticação e Sessão
+- **Login Manual Assistido**: Interface para realizar login no Instagram através de um navegador remoto.
+- **Armazenamento Seguro**: Cookies de sessão são criptografados antes de serem salvos no banco de dados.
+- **Reutilização de Sessão**: O sistema reutiliza cookies para evitar logins repetitivos e checkpoints de segurança.
+- **Bypass de Proteções**:
+    - User-Agent realista (Chrome Desktop).
+    - Detecção e clique automático em banners de cookies ("Allow", "Aceitar").
+    - Estratégia de múltiplos seletores para encontrar campos de login (compatibilidade com UI variada).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 🕷️ Scraping de Dados
+- **Extração de Posts**: Coleta posts do feed de usuários alvo.
+- **Suporte a Mídia Rica**:
+    - **Reels**: Extrai a URL direta do vídeo.
+    - **Carrosséis**: Coleta todas as imagens do carrossel.
+    - **Alt Text**: Salva descrições de acessibilidade.
+- **Detecção de Estado**: Identifica contas privadas ou falhas de carregamento e registra screenshots de debug em caso de erro.
+- **Prevenção de Duplicatas**: Utiliza `UPSERT` para evitar gravar o mesmo post duas vezes.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🛠️ Tecnologias Utilizadas
 
-## Learn More
+- **Frontend/Framework**: [Next.js 16](https://nextjs.org/) (React 19)
+- **Estilização**: Tailwind CSS v4.
+- **Automação de Navegador**: 
+    - `puppeteer-core`: Controle do navegador.
+    - `@sparticuz/chromium`: Binário do Chromium otimizado para AWS Lambda/Vercel (Serverless).
+- **Banco de Dados**: [Supabase](https://supabase.com/) (PostgreSQL).
+- **Ícones**: Lucide React.
+- **Segurança**: Módulo nativo `crypto` do Node.js para criptografia de credenciais.
 
-To learn more about Next.js, take a look at the following resources:
+## 📦 Instalação e Execução
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Pré-requisitos
+- Node.js 20+
+- Conta no Supabase (com as tabelas `scrapper_accounts`, `scrappers_contents`, `users_scrapping` configuradas).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Rodando Localmente
 
-## Deploy on Vercel
+1. **Clone o repositório**:
+   ```bash
+   git clone https://github.com/tria-company/social-media-scrapper.git
+   cd social-media-scrapper
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. **Instale as dependências**:
+   ```bash
+   npm install
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. **Configure as Variáveis de Ambiente**:
+   Crie um arquivo `.env.local` na raiz:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=sua_url_supabase
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_key_anon
+   SUPABASE_SERVICE_ROLE_KEY=sua_key_service
+   ENCRYPTION_KEY=chave_32_chars_hex
+   ```
+
+4. **Inicie o servidor de desenvolvimento**:
+   ```bash
+   npm run dev
+   ```
+   Acesse [http://localhost:3000](http://localhost:3000).
+
+---
+
+## ☁️ Deploy na Vercel
+
+Este projeto está configurado para deploy na Vercel.
+
+**Atenção para Limites Serverless:**
+- O scraping roda em **Funções Serverless** com timeout limitado (padrão 10-60s).
+- Para processos longos, recomenda-se configurar timeouts maiores no `vercel.json` ou usar filas externas.
+- O navegador roda em modo `headless: true` obrigatório devido às restrições de ambiente.
+
+## 📝 Estrutura do Código
+
+- `lib/browser.ts`: Configuração do Puppeteer (Gerencia binários locais vs. serverless).
+- `lib/scraper.ts`: Lógica principal de navegação, login e extração de dados.
+- `lib/encryption.ts`: Utilitários de criptografia.
+- `app/`: Páginas e rotas da API (Next.js App Router).
