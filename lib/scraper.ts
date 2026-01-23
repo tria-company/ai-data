@@ -1,6 +1,8 @@
 
 
 import crypto from 'crypto';
+import path from 'path';
+import os from 'os';
 import { launchBrowser } from './browser';
 import { supabase } from './supabase';
 import { encrypt, decrypt } from './encryption';
@@ -35,8 +37,8 @@ export async function performLogin(accountId: string) {
 
     // Launch browser (HEADLESS: FALSE) - ONLY WORKS LOCALLY OR WITH BROWSER SERVICE
     console.log("🚀 Launching browser...");
-    // Use unique user data dir to prevent session pollution between accounts
-    const uniqueUserDataDir = `./userData_${accountId}`;
+    // Use unique user data dir in /tmp (or os equivalent) to prevent read-only errors on Vercel
+    const uniqueUserDataDir = path.join(os.tmpdir(), `userData_${accountId}`);
     const browser = await launchBrowser({ headless: false, userDataDir: uniqueUserDataDir });
     console.log("✅ Browser launched");
     const page = await browser.newPage();
