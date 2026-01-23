@@ -226,6 +226,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                         onConflict: 'postid',
                         ignoreDuplicates: true
                     })
+                    // @ts-ignore
                     .select('id', { count: 'exact' });
 
                 if (insertError) {

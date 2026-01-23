@@ -47,7 +47,7 @@ export async function launchBrowser(options: BrowserOptions) {
             "--disable-setuid-sandbox",
             "--disable-infobars",
             "--window-position=0,0",
-            "--ignore-certifcate-errors",
+            "--ignore-certificate-errors",
             "--ignore-certificate-errors-spki-list",
             "--disable-acceleration",
             "--disable-gpu", // Keeping this disabled for stability based on recent tests
@@ -72,12 +72,11 @@ export async function launchBrowser(options: BrowserOptions) {
 
     return await puppeteer.launch({
         args: [...args, ...extraArgs],
-        defaultViewport: isLocal && !headless ? { width: 1280, height: 720 } : chromium.defaultViewport as any,
+        defaultViewport: isLocal && !headless ? { width: 1280, height: 720 } : { width: 1280, height: 720 },
         executablePath: executablePath as any,
-        headless: headless ? (isLocal ? true : chromium.headless) : false,
+        headless: headless ? (isLocal ? true : true) : false,
         ignoreDefaultArgs: ["--enable-automation"],
         userDataDir: userDataDir,
-        ignoreHTTPSErrors: true,
         dumpio: isLocal, // Log IO locally for debug
     });
 }
