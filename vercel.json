@@ -1,12 +1,12 @@
 {
     "functions": {
         "app/api/scrape/route": {
-            "memory": 3008,
-            "maxDuration": 300
-        },
-        "app/api/accounts/validate-session/route": {
             "memory": 1024,
             "maxDuration": 60
+        },
+        "app/api/accounts/validate-session/route": {
+            "memory": 512,
+            "maxDuration": 30
         },
         "app/api/accounts/import-cookies/route": {
             "memory": 512,
