@@ -35,11 +35,12 @@ export async function performLogin(accountId: string) {
     const { data: account, error } = await supabase.from('scrapper_accounts').select('*').eq('id', accountId).single();
     if (error || !account) throw new Error("Account not found");
 
-    // Launch browser (HEADLESS: FALSE) - ONLY WORKS LOCALLY OR WITH BROWSER SERVICE
+    // Launch browser (HEADLESS: TRUE for Vercel)
     console.log("🚀 Launching browser...");
     // Use unique user data dir in /tmp (or os equivalent) to prevent read-only errors on Vercel
     const uniqueUserDataDir = path.join(os.tmpdir(), `userData_${accountId}`);
-    const browser = await launchBrowser({ headless: false, userDataDir: uniqueUserDataDir });
+    // Vercel CANNOT run headless: false. It must be true.
+    const browser = await launchBrowser({ headless: true, userDataDir: uniqueUserDataDir });
     console.log("✅ Browser launched");
     const page = await browser.newPage();
     console.log("📄 New page created");
@@ -84,14 +85,13 @@ export async function performLogin(accountId: string) {
             }
         }
 
-        console.log("⏳ Waiting for manual login completion...");
-        // Wait for user to log in manually. 
-        // We detect login by checking URL change to home or presence of nav elements
-        // Timeout 5 minutes.
+        console.log("⏳ Waiting for login completion...");
+        // On Vercel, we can't wait 5 minutes. Max is approx 60s. 
+        // We wait 30s max for the auto-login to work or redirect.
         await page.waitForFunction(() => {
             return window.location.href === "https://www.instagram.com/" ||
                 document.querySelector('a[href="/explore/"]') !== null;
-        }, { timeout: 300000 });
+        }, { timeout: 30000 });
         console.log("✅ Login detected!");
 
         console.log("⏳ Stabilizing session (waiting 5s)...");
