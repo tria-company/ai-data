@@ -8,6 +8,13 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   serverExternalPackages: ['@sparticuz/chromium'],
+  // @ts-ignore
+  experimental: {
+    outputFileTracingIncludes: {
+      '/api/scrape': ['./node_modules/@sparticuz/chromium/bin/**/*'],
+      '/api/accounts/validate-session': ['./node_modules/@sparticuz/chromium/bin/**/*'],
+    },
+  },
 };
 
 export default nextConfig;
