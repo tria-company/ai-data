@@ -57,32 +57,35 @@ export async function performLogin(accountId: string) {
                 const decryptedPassword = decrypt(account.password_encrypted);
                 console.log("⏳ Waiting for username input (60s timeout)...");
                 // Wait longer for Vercel cold starts
-                await page.waitForSelector('input[name="username"]', { timeout: 60000 });
+                // We will wait for specific selectors in the loop below, but first let's wait for ANY input
+                await page.waitForSelector('input', { timeout: 60000 });
 
                 // Check for "Allow Cookies" if present (common in Vercel regions)
                 try {
                     // Try different selectors for cookie buttons
+                    // Note: using 'xpath/' prefix for XPath selectors to avoid deprecated page.$x
                     const cookieSelectors = [
                         'button._a9--._ap36._a9_0',
                         'button[tabindex="0"]', // Generic fallback often used for primary buttons
-                        '//button[contains(text(), "Allow")]',
-                        '//button[contains(text(), "Aceitar")]',
-                        '//button[contains(text(), "Accept")]'
+                        'xpath///button[contains(text(), "Allow")]',
+                        'xpath///button[contains(text(), "Aceitar")]',
+                        'xpath///button[contains(text(), "Accept")]'
                     ];
 
                     for (const selector of cookieSelectors) {
                         let btn;
-                        if (selector.startsWith('//')) {
-                            const [el] = await page.$x(selector);
-                            btn = el;
-                        } else {
+                        try {
                             btn = await page.$(selector);
-                            // Verify text content if it's a generic selector
-                            if (btn && selector === 'button[tabindex="0"]') {
-                                const text = await page.evaluate(el => el.textContent, btn);
-                                if (!text || (!text.includes('Allow') && !text.includes('Aceitar') && !text.includes('Accept'))) {
-                                    continue;
-                                }
+                        } catch (e) {
+                            // Ignore invalid selector errors if any
+                            continue;
+                        }
+
+                        // Verify text content if it's a generic selector
+                        if (btn && selector === 'button[tabindex="0"]') {
+                            const text = await page.evaluate(el => el.textContent, btn);
+                            if (!text || (!text.includes('Allow') && !text.includes('Aceitar') && !text.includes('Accept'))) {
+                                continue;
                             }
                         }
 
@@ -98,10 +101,56 @@ export async function performLogin(accountId: string) {
                     console.log("🍪 Cookie banner check warning:", e);
                 }
 
+                console.log("⏳ Waiting for login fields...");
+
+                // Try multiple selectors for username field
+                const usernameSelectors = [
+                    'input[name="username"]',
+                    'input[aria-label="Phone number, username, or email"]',
+                    'input[aria-label="Telefone, nome de usuário ou email"]', // Portuguese
+                    'input[type="text"]',
+                    'input[type="email"]'
+                ];
+
+                let usernameInput;
+                for (const selector of usernameSelectors) {
+                    try {
+                        const el = await page.waitForSelector(selector, { timeout: 5000 });
+                        if (el) {
+                            usernameInput = selector;
+                            console.log(`✅ Found username field with selector: ${selector}`);
+                            break;
+                        }
+                    } catch (e) {
+                        // Continue to next selector
+                    }
+                }
+
+                if (!usernameInput) {
+                    throw new Error("Could not find any username input field");
+                }
+
                 console.log("⌨️ Typing username...");
-                await page.type('input[name="username"]', account.username, { delay: 50 });
+                await page.type(usernameInput, account.username, { delay: 50 });
+
                 console.log("⌨️ Typing password...");
-                await page.type('input[name="password"]', decryptedPassword, { delay: 50 });
+                // Password usually is just type="password" or name="password"
+                const passwordSelectors = ['input[name="password"]', 'input[type="password"]'];
+                let passwordInput;
+                for (const selector of passwordSelectors) {
+                    const el = await page.$(selector);
+                    if (el) {
+                        passwordInput = selector;
+                        break;
+                    }
+                }
+
+                if (passwordInput) {
+                    await page.type(passwordInput, decryptedPassword, { delay: 50 });
+                } else {
+                    console.warn("⚠️ Could not find password input, trying generic type='password' wait...");
+                    await page.type('input[type="password"]', decryptedPassword, { delay: 50 });
+                }
 
                 const loginBtn = await page.$('button[type="submit"]');
                 if (loginBtn) {
