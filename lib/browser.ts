@@ -62,6 +62,9 @@ export async function launchBrowser(options: BrowserOptions) {
         // Use sparticuz chromium args which are necessary for serverless
         args = [...chromium.args];
         // Ensure headless is enforced if required mostly
+
+        // Add a realistic User Agent for Vercel/Serverless
+        args.push("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
     }
 
     // Common/Shared args if any (careful not to conflict)

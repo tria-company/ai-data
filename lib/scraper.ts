@@ -61,13 +61,42 @@ export async function performLogin(accountId: string) {
 
                 // Check for "Allow Cookies" if present (common in Vercel regions)
                 try {
-                    const cookieBtn = await page.$('button._a9--._ap36._a9_0'); // Common Instagram cookie class
-                    if (cookieBtn) {
-                        console.log("🍪 Found cookie button, clicking...");
-                        await cookieBtn.click();
-                        await delay(2000);
+                    // Try different selectors for cookie buttons
+                    const cookieSelectors = [
+                        'button._a9--._ap36._a9_0',
+                        'button[tabindex="0"]', // Generic fallback often used for primary buttons
+                        '//button[contains(text(), "Allow")]',
+                        '//button[contains(text(), "Aceitar")]',
+                        '//button[contains(text(), "Accept")]'
+                    ];
+
+                    for (const selector of cookieSelectors) {
+                        let btn;
+                        if (selector.startsWith('//')) {
+                            const [el] = await page.$x(selector);
+                            btn = el;
+                        } else {
+                            btn = await page.$(selector);
+                            // Verify text content if it's a generic selector
+                            if (btn && selector === 'button[tabindex="0"]') {
+                                const text = await page.evaluate(el => el.textContent, btn);
+                                if (!text || (!text.includes('Allow') && !text.includes('Aceitar') && !text.includes('Accept'))) {
+                                    continue;
+                                }
+                            }
+                        }
+
+                        if (btn) {
+                            console.log(`🍪 Found cookie button (${selector}), clicking...`);
+                            // @ts-ignore
+                            await btn.click();
+                            await delay(2000);
+                            break; // Clicked one, assume it's enough
+                        }
                     }
-                } catch (e) { }
+                } catch (e) {
+                    console.log("🍪 Cookie banner check warning:", e);
+                }
 
                 console.log("⌨️ Typing username...");
                 await page.type('input[name="username"]', account.username, { delay: 50 });
@@ -81,7 +110,17 @@ export async function performLogin(accountId: string) {
                 }
             } catch (err: any) {
                 const title = await page.title();
-                console.warn(`⚠️ Autofill warning: ${err.message} (Page Title: ${title})`);
+                const url = page.url();
+                console.warn(`⚠️ Autofill warning: ${err.message} (Page Title: ${title}, URL: ${url})`);
+
+                // If we failed to find username, maybe we are ALREADY logged in?
+                if (url === "https://www.instagram.com/" || url.includes("/explore")) {
+                    console.log("⚠️ We might be already logged in, proceeding to verification...");
+                } else {
+                    // Capture body text for debugging content
+                    const bodyText = await page.evaluate(() => document.body.innerText.substring(0, 500));
+                    console.log(`📄 Page content preview: ${bodyText.replace(/\n/g, ' ')}...`);
+                }
             }
         }
 
