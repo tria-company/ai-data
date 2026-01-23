@@ -130,8 +130,9 @@ export async function performLogin(accountId: string) {
     } catch (e: any) {
         // Screenshot for debug
         try {
-            await page.screenshot({ path: './public/debug-login-error.png' });
-            console.log("Screenshot saved to ./public/debug-login-error.png");
+            const screenshotPath = path.join(os.tmpdir(), 'debug-login-error.png');
+            await page.screenshot({ path: screenshotPath });
+            console.log(`📸 Screenshot saved to ${screenshotPath}`);
         } catch (sErr) {
             console.error("Failed to save screenshot", sErr);
         }
@@ -259,7 +260,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                 const pageTitle = await page.title();
                 console.log(`⚠️ No posts found for ${username}. Page Title: "${pageTitle}"`);
                 const timestamp = new Date().getTime();
-                const screenshotPath = `./public/debug-noposts-${username}-${timestamp}.png`;
+                const screenshotPath = path.join(os.tmpdir(), `debug-noposts-${username}-${timestamp}.png`);
                 try {
                     await page.screenshot({ path: screenshotPath });
                     console.log(`📸 Debug Screenshot saved: ${screenshotPath}`);
