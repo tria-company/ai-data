@@ -54,8 +54,20 @@ export async function performLogin(accountId: string) {
             console.log("🔑 Attempting autofill...");
             try {
                 const decryptedPassword = decrypt(account.password_encrypted);
-                console.log("⏳ Waiting for username input...");
-                await page.waitForSelector('input[name="username"]', { timeout: 15000 });
+                console.log("⏳ Waiting for username input (60s timeout)...");
+                // Wait longer for Vercel cold starts
+                await page.waitForSelector('input[name="username"]', { timeout: 60000 });
+
+                // Check for "Allow Cookies" if present (common in Vercel regions)
+                try {
+                    const cookieBtn = await page.$('button._a9--._ap36._a9_0'); // Common Instagram cookie class
+                    if (cookieBtn) {
+                        console.log("🍪 Found cookie button, clicking...");
+                        await cookieBtn.click();
+                        await delay(2000);
+                    }
+                } catch (e) { }
+
                 console.log("⌨️ Typing username...");
                 await page.type('input[name="username"]', account.username, { delay: 50 });
                 console.log("⌨️ Typing password...");
@@ -66,8 +78,9 @@ export async function performLogin(accountId: string) {
                     console.log("🖱️ Clicking login button...");
                     await loginBtn.click();
                 }
-            } catch (err) {
-                console.warn("⚠️ Autofill warning:", err);
+            } catch (err: any) {
+                const title = await page.title();
+                console.warn(`⚠️ Autofill warning: ${err.message} (Page Title: ${title})`);
             }
         }
 
