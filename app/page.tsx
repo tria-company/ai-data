@@ -24,7 +24,7 @@ export default function Home() {
   // Refetching is easiest for now.
 
   useEffect(() => {
-    fetch('/api/targets/list?limit=1000')
+    fetch('/api/targets/list?limit=all')
       .then(r => r.json())
       .then(setAllTargets)
       .catch(console.error);

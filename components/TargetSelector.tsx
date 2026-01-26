@@ -19,8 +19,8 @@ export default function TargetSelector({ onSelectionChange }: TargetSelectorProp
     const [selected, setSelected] = useState<Set<number>>(new Set());
 
     useEffect(() => {
-        // Fetch up to 1000 targets to support "Select All" on a larger set
-        fetch('/api/targets/list?limit=1000')
+        // Fetch all targets to support "Select All" on the full set
+        fetch('/api/targets/list?limit=all')
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) {
