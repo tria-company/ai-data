@@ -46,12 +46,27 @@ export default function ScrapeButton({ accountId, targetIds, allTargets, isAccou
                         })
                     });
 
-                    const data = await res.json();
+                    let data;
+                    try {
+                        const text = await res.text();
+                        try {
+                            data = JSON.parse(text);
+                        } catch (e) {
+                            // If parsing fails, it's likely an HTML error page (504 Timeout, 500 Error, etc.)
+                            if (res.status === 504) {
+                                throw new Error('Tempo limite excedido (300s). O Instagram demorou muito para responder.');
+                            }
+                            throw new Error(`Erro do Servidor (${res.status}): Resposta inválida.`);
+                        }
+                    } catch (parseErr: any) {
+                        throw new Error(parseErr.message || 'Falha ao processar resposta do servidor');
+                    }
 
                     if (!res.ok) {
-                        addLog(`❌ Erro no @${username}: ${data.error || 'Falha desconhecida'}`);
+                        addLog(`❌ Erro no @${username}: ${data?.error || 'Falha desconhecida'}`);
                         continue;
                     }
+
 
                     const result = data.results[0]; // expect array of 1
                     if (result?.status === 'success') {
