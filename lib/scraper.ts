@@ -11,7 +11,9 @@ import {
     scrollToBottom,
     extractPostsData,
     extractVideoUrl,
-    extractCarouselImages
+    extractCarouselImages,
+    extractPostLikes,
+    extractPostComments
 } from './extraction';
 import { Protocol } from 'puppeteer-core';
 
@@ -111,6 +113,36 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                 }
             }
 
+            // Extract likes and comments for posts (limit to 10 to avoid timeouts)
+            const postsForEngagement = posts.slice(0, 10);
+            let totalLikes = 0;
+            let totalComments = 0;
+
+            for (const post of postsForEngagement) {
+                try {
+                    const likes = await extractPostLikes(page, post.postUrl);
+                    post.likes = likes;
+                    totalLikes += likes.length;
+                } catch (e: any) {
+                    console.warn(`[likes] Failed for ${post.postUrl}: ${e.message}`);
+                    post.likes = [];
+                }
+
+                try {
+                    const comments = await extractPostComments(page, post.postUrl);
+                    post.comments = comments;
+                    totalComments += comments.length;
+                } catch (e: any) {
+                    console.warn(`[comments] Failed for ${post.postUrl}: ${e.message}`);
+                    post.comments = [];
+                }
+
+                // Random delay between posts to avoid rate limiting
+                await delay(Math.random() * 1000 + 500);
+            }
+
+            console.log(`Extracted ${totalLikes} likes and ${totalComments} comments for ${username}`);
+
             // Save to DB (Prevent duplicates)
             const postsPayload = posts.map(post => ({
                 // No ID provided, let Postgres generate it
@@ -161,12 +193,66 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                 results.push({ username, status: 'success', postsFound: 0 }); // Success but 0
             }
 
+            // Save likes to DB
+            const likesPayload: Array<{postid: string, liker_username: string}> = [];
+            for (const post of posts) {
+                if (post.likes && post.likes.length > 0) {
+                    for (const liker of post.likes) {
+                        likesPayload.push({ postid: post.postId, liker_username: liker });
+                    }
+                }
+            }
+
+            if (likesPayload.length > 0) {
+                const { error: likesError } = await supabase
+                    .from('post_likes')
+                    .upsert(likesPayload, {
+                        onConflict: 'postid,liker_username',
+                        ignoreDuplicates: true
+                    });
+
+                if (likesError) {
+                    console.error(`Error saving likes for ${username}:`, likesError);
+                } else {
+                    console.log(`Saved ${likesPayload.length} likes for ${username}`);
+                }
+            }
+
+            // Save comments to DB
+            const commentsPayload: Array<{postid: string, commenter_username: string, comment_text: string}> = [];
+            for (const post of posts) {
+                if (post.comments && post.comments.length > 0) {
+                    for (const comment of post.comments) {
+                        commentsPayload.push({
+                            postid: post.postId,
+                            commenter_username: comment.username,
+                            comment_text: comment.text
+                        });
+                    }
+                }
+            }
+
+            if (commentsPayload.length > 0) {
+                const { error: commentsError } = await supabase
+                    .from('post_comments')
+                    .upsert(commentsPayload, {
+                        onConflict: 'postid,commenter_username,comment_text',
+                        ignoreDuplicates: true
+                    });
+
+                if (commentsError) {
+                    console.error(`Error saving comments for ${username}:`, commentsError);
+                } else {
+                    console.log(`Saved ${commentsPayload.length} comments for ${username}`);
+                }
+            }
+
             await supabase.from('users_scrapping').update({
                 status: 'completed',
                 data_ultimo_scrapping: new Date().toISOString()
             }).eq('user', username);
 
-            results.push({ username, status: 'success', data: { posts: posts.length } });
+            results.push({ username, status: 'success', data: { posts: posts.length, likes: totalLikes, comments: totalComments } });
 
         } catch (e: any) {
             console.error(`Error scraping ${username}: ${e.message}`);
