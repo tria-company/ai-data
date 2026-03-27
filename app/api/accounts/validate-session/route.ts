@@ -39,10 +39,29 @@ export async function GET(req: NextRequest) {
         browser = await launchBrowser({ headless: true });
         const page = await browser.newPage();
 
-        // 3. Set Cookies
+        // 3. Set Cookies (sanitize for Puppeteer compatibility)
         if (cookies.length > 0) {
-            // @ts-ignore
-            await page.setCookie(...cookies);
+            const sanitized = cookies.map((c: any) => {
+                const clean: any = {
+                    name: c.name,
+                    value: c.value,
+                    domain: c.domain,
+                    path: c.path || '/',
+                };
+                if (c.expires || c.expirationDate) {
+                    clean.expires = c.expires || c.expirationDate;
+                }
+                if (c.httpOnly !== undefined) clean.httpOnly = c.httpOnly;
+                if (c.secure !== undefined) clean.secure = c.secure;
+                if (c.sameSite && typeof c.sameSite === 'string') {
+                    const val = c.sameSite.charAt(0).toUpperCase() + c.sameSite.slice(1).toLowerCase();
+                    if (['Strict', 'Lax', 'None'].includes(val)) {
+                        clean.sameSite = val;
+                    }
+                }
+                return clean;
+            });
+            await page.setCookie(...sanitized);
         }
 
         // 4. Navigate to Instagram

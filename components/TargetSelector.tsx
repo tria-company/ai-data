@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState } from 'react';
-import { Target, CheckSquare, Square } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Target, CheckSquare, Square, X } from 'lucide-react';
 
 interface TargetUser {
     id: number;
@@ -67,6 +67,10 @@ export default function TargetSelector({ onSelectionChange }: TargetSelectorProp
         }
     };
 
+    const selectedTargets = useMemo(() => {
+        return targets.filter(t => selected.has(t.id));
+    }, [targets, selected]);
+
     if (loading) return <div>Loading targets...</div>;
 
     return (
@@ -79,6 +83,22 @@ export default function TargetSelector({ onSelectionChange }: TargetSelectorProp
                     {selected.size === targets.length ? 'Desmarcar todos' : 'Marcar todos'}
                 </button>
             </div>
+
+            {/* Selected targets chips */}
+            {selectedTargets.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 p-2 rounded-lg border border-blue-500/30 bg-blue-900/10">
+                    {selectedTargets.map(target => (
+                        <button
+                            key={target.id}
+                            onClick={() => toggleSelect(target.id)}
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-900/40 border border-blue-500/40 text-blue-200 text-xs font-mono hover:bg-red-900/30 hover:border-red-500/40 hover:text-red-200 transition-colors group"
+                        >
+                            {target.user}
+                            <X className="h-3 w-3 opacity-50 group-hover:opacity-100" />
+                        </button>
+                    ))}
+                </div>
+            )}
 
             <div className="max-h-60 overflow-y-auto border border-gray-700 rounded-lg bg-gray-900/50 p-2 space-y-1">
                 {targets.map(target => (

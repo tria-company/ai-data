@@ -202,21 +202,31 @@ export async function extractPostLikes(page: Page, postUrl: string): Promise<str
         await newPage.goto(postUrl, { waitUntil: "networkidle2", timeout: 30000 });
         await delay(2000);
 
-        // Try to find and click the likes count to open the likes modal
+        // Find and click the likes count to open the likes modal
+        // Instagram renders likes as a span[role="button"] containing just a number (e.g. "12")
+        // located near the like/comment/share action buttons section
         const likesClicked = await newPage.evaluate(() => {
-            // Strategy 1: Button or link containing likes/curtidas text
-            const allElements = Array.from(document.querySelectorAll('a, button, span'));
-            for (const el of allElements) {
+            // Strategy 1: Find span[role="button"] that contains only a number (the likes count)
+            const roleButtons = document.querySelectorAll('span[role="button"]');
+            for (const el of Array.from(roleButtons)) {
                 const text = (el.textContent || '').trim();
-                if (/(\d+)\s*(likes?|curtidas?)/i.test(text) || /liked by|curtido por/i.test(text)) {
+                // Match a plain number (likes count) or "N likes"/"N curtidas"
+                if (/^\d[\d,.]*$/.test(text) || /^\d[\d,.]*\s*(likes?|curtidas?)$/i.test(text)) {
                     (el as HTMLElement).click();
                     return true;
                 }
             }
-            // Strategy 2: Section with aria-label related to likes
-            const ariaElements = document.querySelectorAll('[aria-label*="like"], [aria-label*="curtida"]');
-            for (const el of Array.from(ariaElements)) {
-                if (el.tagName === 'A' || el.tagName === 'BUTTON' || el.tagName === 'SPAN') {
+            // Strategy 2: Look for anchor links containing likes/curtidas text
+            const allLinks = document.querySelectorAll('a[href*="/liked_by/"], a[href*="/likes/"]');
+            if (allLinks.length > 0) {
+                (allLinks[0] as HTMLElement).click();
+                return true;
+            }
+            // Strategy 3: Any clickable element with "likes"/"curtidas" text near the post
+            const spans = document.querySelectorAll('span, a, button');
+            for (const el of Array.from(spans)) {
+                const text = (el.textContent || '').trim();
+                if (/^\d[\d,.]*\s*(likes?|curtidas?)$/i.test(text) || /^(liked by|curtido por)/i.test(text)) {
                     (el as HTMLElement).click();
                     return true;
                 }
@@ -233,31 +243,38 @@ export async function extractPostLikes(page: Page, postUrl: string): Promise<str
         await delay(2000);
 
         // Scroll within the likes modal to load more likers
+        // Instagram uses div[style*="overflow: hidden auto"] for the scrollable container
         for (let i = 0; i < 5; i++) {
-            await newPage.evaluate(() => {
-                const modal = document.querySelector('div[role="dialog"]');
-                if (modal) {
-                    const scrollable = modal.querySelector('div[style*="overflow"]') || modal;
+            const hasMore = await newPage.evaluate(() => {
+                // Try multiple strategies to find the scrollable likes list
+                const scrollable =
+                    document.querySelector('div[style*="overflow: hidden auto"]') ||
+                    document.querySelector('div[style*="overflow-y: auto"]') ||
+                    document.querySelector('div[role="dialog"] div[style*="overflow"]');
+                if (scrollable) {
+                    const prevTop = scrollable.scrollTop;
                     scrollable.scrollTop = scrollable.scrollHeight;
+                    return scrollable.scrollTop > prevTop; // true if we actually scrolled
                 }
+                return false;
             });
             await delay(1000);
+            if (!hasMore && i > 0) break; // Stop if no more content to scroll
         }
 
-        // Extract usernames from the modal
+        // Extract usernames from the likes modal
+        // Instagram profile links use class "notranslate _a6hd" with href="/username/"
+        // Username text is in span with classes "_ap3a _aaco _aacw _aacx _aad7 _aade"
         const usernames = await newPage.evaluate(() => {
-            const modal = document.querySelector('div[role="dialog"]');
-            if (!modal) return [];
-
-            const links = modal.querySelectorAll('a[href^="/"]');
             const names: string[] = [];
             const seen = new Set<string>();
 
-            for (const link of Array.from(links)) {
+            // Strategy 1: Find profile links with notranslate class (most reliable)
+            const profileLinks = document.querySelectorAll('a.notranslate[href^="/"], a._a6hd[href^="/"]');
+            for (const link of Array.from(profileLinks)) {
                 const href = link.getAttribute('href') || '';
-                // Filter profile links (single path segment like /username/)
                 const match = href.match(/^\/([a-zA-Z0-9_.]+)\/?$/);
-                if (match && match[1] !== 'explore' && match[1] !== 'accounts') {
+                if (match && !['explore', 'accounts', 'p', 'reel', 'stories'].includes(match[1])) {
                     const username = match[1];
                     if (!seen.has(username)) {
                         seen.add(username);
@@ -265,6 +282,27 @@ export async function extractPostLikes(page: Page, postUrl: string): Promise<str
                     }
                 }
             }
+
+            // Strategy 2: If strategy 1 found nothing, try username spans inside the modal
+            if (names.length === 0) {
+                const scrollContainer = document.querySelector('div[style*="overflow: hidden auto"]') ||
+                    document.querySelector('div[role="dialog"]');
+                if (scrollContainer) {
+                    const links = scrollContainer.querySelectorAll('a[href^="/"]');
+                    for (const link of Array.from(links)) {
+                        const href = link.getAttribute('href') || '';
+                        const match = href.match(/^\/([a-zA-Z0-9_.]+)\/?$/);
+                        if (match && !['explore', 'accounts', 'p', 'reel', 'stories'].includes(match[1])) {
+                            const username = match[1];
+                            if (!seen.has(username)) {
+                                seen.add(username);
+                                names.push(username);
+                            }
+                        }
+                    }
+                }
+            }
+
             return names;
         });
 
@@ -290,7 +328,7 @@ export async function extractPostComments(page: Page, postUrl: string): Promise<
         // Try to click "Load more comments" button up to 3 times
         for (let i = 0; i < 3; i++) {
             const clicked = await newPage.evaluate(() => {
-                const allElements = Array.from(document.querySelectorAll('button, span, a'));
+                const allElements = Array.from(document.querySelectorAll('button, span, a, div[role="button"]'));
                 for (const el of allElements) {
                     const text = (el.textContent || '').trim().toLowerCase();
                     if (
@@ -298,7 +336,7 @@ export async function extractPostComments(page: Page, postUrl: string): Promise<
                         text.includes('ver mais comentários') ||
                         text.includes('ver todos os') ||
                         text.includes('view all') ||
-                        /^\+$/.test(text) // Plus icon for more comments
+                        text.includes('carregar mais comentários')
                     ) {
                         (el as HTMLElement).click();
                         return true;
@@ -310,44 +348,84 @@ export async function extractPostComments(page: Page, postUrl: string): Promise<
             await delay(1500);
         }
 
-        // Extract the post author from the URL to skip caption
-        const urlMatch = postUrl.match(/instagram\.com\/([^\/]+)/);
-        // We cannot reliably get the author from URL since post URLs are /p/CODE/
-        // Instead, we'll identify the first comment as caption by checking if it's from the page's og author
-
         // Extract comments from the post page
+        // Instagram comment structure: each comment has a username link (a.notranslate._a6hd)
+        // with href="/username/" and the comment text in a sibling/nearby span.
+        // Comment permalink links have href like "/p/CODE/c/COMMENT_ID/"
         const comments = await newPage.evaluate(() => {
             const results: Array<{username: string, text: string}> = [];
             const seen = new Set<string>();
+            const reservedPaths = ['explore', 'accounts', 'p', 'reel', 'stories', 'direct', 'reels'];
 
-            // Strategy 1: Look for comment containers - typically ul > li structures
-            const commentElements = document.querySelectorAll('ul ul li, div[role="button"]');
+            // Find all username links in comments (notranslate class identifies profile links)
+            const usernameLinks = document.querySelectorAll('a.notranslate._a6hd[href^="/"]');
 
-            for (const el of Array.from(commentElements)) {
-                const link = el.querySelector('a[href^="/"]');
-                if (!link) continue;
-
+            for (const link of Array.from(usernameLinks)) {
                 const href = link.getAttribute('href') || '';
                 const nameMatch = href.match(/^\/([a-zA-Z0-9_.]+)\/?$/);
                 if (!nameMatch) continue;
 
                 const username = nameMatch[1];
-                if (username === 'explore' || username === 'accounts') continue;
+                if (reservedPaths.includes(username)) continue;
 
-                // Find comment text - typically in a span next to or near the username link
-                const spans = el.querySelectorAll('span');
+                // Navigate up to find the comment container
+                // Each comment block is a series of nested divs containing:
+                // 1) The username span (._ap3a._aaco._aacw._aacx._aad7._aade)
+                // 2) The comment text span (sibling)
+                // 3) A timestamp link with /c/ in the href
+                const container = link.closest('div.x78zum5') ||
+                    link.closest('div[class*="x1iyjqo2"]') ||
+                    link.parentElement?.parentElement?.parentElement?.parentElement?.parentElement;
+                if (!container) continue;
+
+                // Check if this container has a comment permalink (confirms it's a comment, not a caption header)
+                const commentPermalink = container.querySelector('a[href*="/c/"]');
+
+                // Find comment text - it's in a span that is NOT the username, timestamp, or "Responder"
                 let commentText = '';
-                for (const span of Array.from(spans)) {
-                    const spanText = (span.textContent || '').trim();
-                    // Skip very short text, timestamps, and the username itself
-                    if (
-                        spanText.length > 1 &&
-                        spanText !== username &&
-                        !/^\d+[smhdw]$/.test(spanText) && // Skip timestamps like "2h", "3d"
-                        !/^(Reply|Responder|Like|Curtir)$/i.test(spanText)
-                    ) {
-                        commentText = spanText;
-                        break;
+
+                // Strategy 1: Look for the text span that appears after the username in the same text block
+                // The structure is: <span><username_link></span>&nbsp;<span>comment text</span>
+                const parentSpan = link.closest('span.xt0psk2') ||
+                    link.closest('span[class*="x1lliihq"]');
+                if (parentSpan) {
+                    // The comment text is typically in a sibling div after the username's containing div
+                    const textContainer = parentSpan.closest('div[class*="x1c4vz4f"]')?.parentElement;
+                    if (textContainer) {
+                        const textDivs = textContainer.querySelectorAll('div[class*="x1cy8zhl"] span[dir="auto"], div[class*="xdt5ytf"] > span[dir="auto"]');
+                        for (const textSpan of Array.from(textDivs)) {
+                            const spanText = (textSpan.textContent || '').trim();
+                            if (
+                                spanText.length > 0 &&
+                                spanText !== username &&
+                                !/^\d+\s*(sem|min|[smhdw])$/i.test(spanText) &&
+                                !/^(Reply|Responder|Curtir|Like)$/i.test(spanText)
+                            ) {
+                                commentText = spanText;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Strategy 2: Broader search in the container for comment text
+                if (!commentText && container) {
+                    const allSpans = container.querySelectorAll('span[dir="auto"]');
+                    for (const span of Array.from(allSpans)) {
+                        const spanText = (span.textContent || '').trim();
+                        // Skip username, timestamps, and action buttons
+                        if (
+                            spanText.length > 0 &&
+                            spanText !== username &&
+                            !spanText.includes(username) &&
+                            !/^\d+\s*(sem|min|[smhdw])$/i.test(spanText) &&
+                            !/^(Reply|Responder|Curtir|Like)$/i.test(spanText) &&
+                            !span.closest('svg') && // Skip SVG title text
+                            !span.querySelector('a') // Skip spans that contain links (username spans)
+                        ) {
+                            commentText = spanText;
+                            break;
+                        }
                     }
                 }
 
@@ -360,49 +438,12 @@ export async function extractPostComments(page: Page, postUrl: string): Promise<
                 }
             }
 
-            // Strategy 2: If strategy 1 yielded nothing, try broader approach
-            if (results.length === 0) {
-                const allLinks = document.querySelectorAll('a[href^="/"]');
-                for (const link of Array.from(allLinks)) {
-                    const href = link.getAttribute('href') || '';
-                    const nameMatch = href.match(/^\/([a-zA-Z0-9_.]+)\/?$/);
-                    if (!nameMatch) continue;
-                    const username = nameMatch[1];
-                    if (username === 'explore' || username === 'accounts' || username === 'p' || username === 'reel') continue;
-
-                    // Look for adjacent text content
-                    const parent = link.closest('div, li');
-                    if (!parent) continue;
-
-                    const spans = parent.querySelectorAll('span');
-                    for (const span of Array.from(spans)) {
-                        const spanText = (span.textContent || '').trim();
-                        if (
-                            spanText.length > 5 &&
-                            spanText !== username &&
-                            !/^\d+[smhdw]$/.test(spanText) &&
-                            !/^(Reply|Responder|Like|Curtir|View|Ver)$/i.test(spanText)
-                        ) {
-                            const key = `${username}:${spanText}`;
-                            if (!seen.has(key)) {
-                                seen.add(key);
-                                results.push({ username, text: spanText });
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-
             return results;
         });
 
         if (comments.length === 0) {
             console.warn(`[extractPostComments] 0 comments extracted for ${postUrl}`);
         }
-
-        // Skip the first comment if it looks like the post caption (usually from the post author)
-        // The first entry is often the caption — we keep all for now since we can't reliably detect the author
 
         await newPage.close();
         return comments;
@@ -411,6 +452,244 @@ export async function extractPostComments(page: Page, postUrl: string): Promise<
         await newPage.close();
         return [];
     }
+}
+
+export async function extractBio(page: Page): Promise<string> {
+    try {
+        const bio = await page.evaluate(() => {
+            // Instagram bio is in a span inside the header section, typically with class -vDIg or similar
+            // Strategy 1: The bio section usually has a specific span with dir="auto" inside the header area
+            const headerSection = document.querySelector('header section') || document.querySelector('header');
+            if (!headerSection) return '';
+
+            // The bio text is in a span within a div that's NOT the username, name, or stats
+            // Look for spans with dir="auto" that contain the bio text
+            const bioSpans = headerSection.querySelectorAll('span[dir="auto"]');
+            for (const span of Array.from(bioSpans)) {
+                const text = (span.textContent || '').trim();
+                // Skip empty, very short, or numeric-only (follower counts)
+                if (text.length < 2 || /^\d[\d,.mkMK]*$/.test(text)) continue;
+                // Skip username/name which are usually in h1/h2 or specific class
+                if (span.closest('h1') || span.closest('h2')) continue;
+                // Skip follower/following/posts count labels
+                if (/^(posts?|followers?|following|publicações|seguidores|seguindo)$/i.test(text)) continue;
+                return text;
+            }
+
+            // Strategy 2: Look for the bio in a div.-vDIg span (older layout)
+            const legacyBio = document.querySelector('div.-vDIg span');
+            if (legacyBio) return (legacyBio.textContent || '').trim();
+
+            return '';
+        });
+
+        return bio;
+    } catch (e) {
+        console.warn('[extractBio] Error:', e);
+        return '';
+    }
+}
+
+export interface HighlightData {
+    title: string;
+    coverUrl: string | null;
+    items: Array<{
+        mediaUrl: string;
+        mediaType: 'image' | 'video';
+    }>;
+}
+
+export async function extractHighlights(page: Page, username: string): Promise<HighlightData[]> {
+    const highlights: HighlightData[] = [];
+
+    try {
+        // Instagram highlights are in a <ul> with <li> items, each containing:
+        // <a aria-label="Ver destaque de TITLE" href="/stories/highlights/ID/" class="... _a6hd">
+        //   <img height="72" width="72" class="xz74otr..." src="COVER_URL">
+        //   <span class="x1lliihq x193iq5w x6ikm8r x10wlt62 xlyipyv xuxw1ft">TITLE</span>
+        const highlightItems = await page.evaluate(() => {
+            const items: Array<{ href: string; title: string; coverUrl: string | null }> = [];
+
+            // Find all highlight links by their href pattern
+            const highlightLinks = document.querySelectorAll('a[href*="/stories/highlights/"]');
+            for (const link of Array.from(highlightLinks)) {
+                const href = link.getAttribute('href') || '';
+
+                // Extract title from aria-label (most reliable: "Ver destaque de TITLE")
+                const ariaLabel = link.getAttribute('aria-label') || '';
+                let title = '';
+                const labelMatch = ariaLabel.match(/Ver destaque de (.+)/i) || ariaLabel.match(/View (.+) highlight/i);
+                if (labelMatch) {
+                    title = labelMatch[1].trim();
+                }
+
+                // Fallback: get title from the inner span
+                if (!title) {
+                    const spans = link.querySelectorAll('span');
+                    for (const span of Array.from(spans)) {
+                        const text = (span.textContent || '').trim();
+                        // The title span is the deepest one with actual text
+                        if (text.length > 0 && text.length < 60 && !text.includes('http')) {
+                            title = text;
+                        }
+                    }
+                }
+
+                // Get cover image (72x72 thumbnail)
+                const img = link.querySelector('img[height="72"], img[width="72"]') ||
+                    link.querySelector('img');
+                const coverUrl = img ? (img as HTMLImageElement).src : null;
+
+                if (href) {
+                    items.push({
+                        href,
+                        title: title || `Destaque ${items.length + 1}`,
+                        coverUrl
+                    });
+                }
+            }
+
+            return items;
+        });
+
+        if (highlightItems.length === 0) {
+            console.log(`[extractHighlights] No highlights found for ${username}`);
+            return [];
+        }
+
+        console.log(`[extractHighlights] Found ${highlightItems.length} highlights for ${username}`);
+
+        // Navigate to each highlight and extract all stories
+        for (const hl of highlightItems) {
+            try {
+                // Navigate directly to the highlight URL (more reliable than clicking)
+                const highlightUrl = hl.href.startsWith('http')
+                    ? hl.href
+                    : `https://www.instagram.com${hl.href}`;
+
+                await page.goto(highlightUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                await delay(2500);
+
+                const items: Array<{ mediaUrl: string; mediaType: 'image' | 'video' }> = [];
+                let attempts = 0;
+                const maxAttempts = 50; // Max stories per highlight
+                let consecutiveEmpty = 0;
+
+                while (attempts < maxAttempts) {
+                    // Wait for story content to load
+                    await delay(800);
+
+                    // Extract current story media
+                    const item = await page.evaluate(() => {
+                        // Check for video first (stories can be video)
+                        const videoSources = document.querySelectorAll('video source[src], video[src]');
+                        for (const vid of Array.from(videoSources)) {
+                            const src = vid.getAttribute('src') || (vid as HTMLVideoElement).src;
+                            if (src && src.startsWith('http')) {
+                                return { mediaUrl: src, mediaType: 'video' as const };
+                            }
+                        }
+
+                        // Check for image - story images are large, not profile pics
+                        // They typically have style="object-fit: cover" or are inside the story container
+                        const imgs = document.querySelectorAll('img[decoding="sync"], img[style*="object-fit"], img[sizes]');
+                        for (const img of Array.from(imgs)) {
+                            const src = (img as HTMLImageElement).src;
+                            const width = (img as HTMLImageElement).width || (img as HTMLImageElement).naturalWidth;
+                            // Skip small images (profile pics, thumbnails)
+                            if (src && width > 100 &&
+                                !src.includes('s150x150') &&
+                                !src.includes('s64x64') &&
+                                !src.includes('s32x32') &&
+                                !src.includes('_s150x150') &&
+                                !src.includes('profile')) {
+                                return { mediaUrl: src, mediaType: 'image' as const };
+                            }
+                        }
+
+                        // Broader fallback: any large image in the page
+                        const allImgs = document.querySelectorAll('img');
+                        for (const img of Array.from(allImgs)) {
+                            const src = (img as HTMLImageElement).src;
+                            const rect = (img as HTMLElement).getBoundingClientRect();
+                            // Story images are usually large and centered
+                            if (src && rect.width > 200 && rect.height > 200 &&
+                                !src.includes('s150x150') &&
+                                !src.includes('s64x64')) {
+                                return { mediaUrl: src, mediaType: 'image' as const };
+                            }
+                        }
+
+                        return null;
+                    });
+
+                    if (item && !items.some(i => i.mediaUrl === item.mediaUrl)) {
+                        items.push(item);
+                        consecutiveEmpty = 0;
+                    } else {
+                        consecutiveEmpty++;
+                        if (consecutiveEmpty >= 3) break; // No new content 3 times in a row
+                    }
+
+                    // Click "Next" to advance to next story in this highlight
+                    const navigated = await page.evaluate(() => {
+                        // Strategy 1: Button with Next/Avançar/Próximo aria-label
+                        const nextLabels = ['Next', 'Avançar', 'Próximo', 'Siguiente'];
+                        for (const label of nextLabels) {
+                            const btn = document.querySelector(`button[aria-label="${label}"]`);
+                            if (btn) {
+                                (btn as HTMLElement).click();
+                                return 'next';
+                            }
+                        }
+
+                        // Strategy 2: The right-side clickable area in story viewer
+                        // Stories have a left/right division for prev/next
+                        const buttons = document.querySelectorAll('div[role="button"]');
+                        const rightButtons = Array.from(buttons).filter(b => {
+                            const rect = b.getBoundingClientRect();
+                            return rect.left > window.innerWidth / 2 && rect.height > 100;
+                        });
+                        if (rightButtons.length > 0) {
+                            (rightButtons[0] as HTMLElement).click();
+                            return 'next';
+                        }
+
+                        return 'end';
+                    });
+
+                    if (navigated === 'end') break;
+
+                    await delay(1200);
+                    attempts++;
+
+                    // Check if we're still in a story viewer (didn't navigate away)
+                    const currentUrl = page.url();
+                    if (!currentUrl.includes('/stories/')) break;
+                }
+
+                highlights.push({
+                    title: hl.title,
+                    coverUrl: hl.coverUrl,
+                    items
+                });
+
+                console.log(`[extractHighlights] "${hl.title}": ${items.length} items extracted`);
+
+            } catch (e) {
+                console.warn(`[extractHighlights] Error extracting highlight "${hl.title}":`, e);
+            }
+
+            // Always go back to profile before next highlight
+            await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+            await delay(1500);
+        }
+
+    } catch (e) {
+        console.warn(`[extractHighlights] Error for ${username}:`, e);
+    }
+
+    return highlights;
 }
 
 export async function extractPostsData(page: Page, username: string, maxPosts = 50): Promise<any[]> {

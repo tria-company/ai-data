@@ -13,7 +13,9 @@ import {
     extractVideoUrl,
     extractCarouselImages,
     extractPostLikes,
-    extractPostComments
+    extractPostComments,
+    extractBio,
+    extractHighlights
 } from './extraction';
 import { Protocol } from 'puppeteer-core';
 
@@ -63,10 +65,29 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
     const browser = await launchBrowser({ headless: true });
     const page = await browser.newPage();
 
-    // Set cookies
+    // Set cookies (sanitize for Puppeteer compatibility)
     if (cookies && cookies.length > 0) {
-        // @ts-ignore
-        await page.setCookie(...cookies);
+        const sanitized = cookies.map((c: any) => {
+            const clean: any = {
+                name: c.name,
+                value: c.value,
+                domain: c.domain,
+                path: c.path || '/',
+            };
+            if (c.expires || c.expirationDate) {
+                clean.expires = c.expires || c.expirationDate;
+            }
+            if (c.httpOnly !== undefined) clean.httpOnly = c.httpOnly;
+            if (c.secure !== undefined) clean.secure = c.secure;
+            if (c.sameSite && typeof c.sameSite === 'string') {
+                const val = c.sameSite.charAt(0).toUpperCase() + c.sameSite.slice(1).toLowerCase();
+                if (['Strict', 'Lax', 'None'].includes(val)) {
+                    clean.sameSite = val;
+                }
+            }
+            return clean;
+        });
+        await page.setCookie(...sanitized);
     }
 
     const results: ScrapeResult[] = [];
@@ -90,6 +111,76 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                 await supabase.from('users_scrapping').update({ status: 'failed' }).eq('user', username);
                 results.push({ username, status: 'failed', error: 'Private account' });
                 continue;
+            }
+
+            // Extract BIO before scrolling (it's visible at the top of the profile)
+            let bio = '';
+            try {
+                bio = await extractBio(page);
+                if (bio) {
+                    console.log(`📝 Bio for ${username}: "${bio.substring(0, 80)}${bio.length > 80 ? '...' : ''}"`);
+                    await supabase
+                        .from('profile_bio')
+                        .upsert({ username: cleanUsername, bio, updated_at: new Date().toISOString() }, {
+                            onConflict: 'username'
+                        });
+                }
+            } catch (e: any) {
+                console.warn(`[bio] Failed for ${username}: ${e.message}`);
+            }
+
+            // Extract Highlights before scrolling (they're below the bio)
+            let highlightsData: any[] = [];
+            try {
+                highlightsData = await extractHighlights(page, cleanUsername);
+                if (highlightsData.length > 0) {
+                    console.log(`⭐ Found ${highlightsData.length} highlights for ${username}`);
+
+                    for (const hl of highlightsData) {
+                        // Upsert the highlight
+                        const { data: hlRow, error: hlError } = await supabase
+                            .from('profile_highlights')
+                            .upsert({
+                                username: cleanUsername,
+                                title: hl.title,
+                                cover_url: hl.coverUrl
+                            }, {
+                                onConflict: 'username,title'
+                            })
+                            .select('id')
+                            .single();
+
+                        if (hlError || !hlRow) {
+                            console.error(`Error saving highlight "${hl.title}":`, hlError);
+                            continue;
+                        }
+
+                        // Save highlight items
+                        if (hl.items.length > 0) {
+                            const itemsPayload = hl.items.map((item: any) => ({
+                                highlight_id: hlRow.id,
+                                media_url: item.mediaUrl,
+                                media_type: item.mediaType
+                            }));
+
+                            const { error: itemsError } = await supabase
+                                .from('profile_highlight_items')
+                                .upsert(itemsPayload, {
+                                    onConflict: 'highlight_id,media_url',
+                                    ignoreDuplicates: true
+                                });
+
+                            if (itemsError) {
+                                console.error(`Error saving highlight items for "${hl.title}":`, itemsError);
+                            }
+                        }
+                    }
+                }
+            } catch (e: any) {
+                console.warn(`[highlights] Failed for ${username}: ${e.message}`);
+                // Navigate back to profile in case highlights extraction left us elsewhere
+                await page.goto(`https://www.instagram.com/${cleanUsername}/`, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
+                await delay(1500);
             }
 
             await scrollToBottom(page, username);
@@ -118,22 +209,54 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
             let totalLikes = 0;
             let totalComments = 0;
 
+            // Check which posts already have likes/comments in the DB to skip them
+            const postIds = postsForEngagement.map(p => p.postId);
+            const { data: existingLikes } = await supabase
+                .from('post_likes')
+                .select('postid')
+                .in('postid', postIds);
+            const { data: existingComments } = await supabase
+                .from('post_comments')
+                .select('postid')
+                .in('postid', postIds);
+
+            const postsWithLikes = new Set((existingLikes || []).map(r => r.postid));
+            const postsWithComments = new Set((existingComments || []).map(r => r.postid));
+
             for (const post of postsForEngagement) {
-                try {
-                    const likes = await extractPostLikes(page, post.postUrl);
-                    post.likes = likes;
-                    totalLikes += likes.length;
-                } catch (e: any) {
-                    console.warn(`[likes] Failed for ${post.postUrl}: ${e.message}`);
+                const hasLikes = postsWithLikes.has(post.postId);
+                const hasComments = postsWithComments.has(post.postId);
+
+                if (hasLikes && hasComments) {
+                    console.log(`[skip] Post ${post.postId} already has likes & comments in DB`);
+                    post.likes = [];
+                    post.comments = [];
+                    continue;
+                }
+
+                if (!hasLikes) {
+                    try {
+                        const likes = await extractPostLikes(page, post.postUrl);
+                        post.likes = likes;
+                        totalLikes += likes.length;
+                    } catch (e: any) {
+                        console.warn(`[likes] Failed for ${post.postUrl}: ${e.message}`);
+                        post.likes = [];
+                    }
+                } else {
                     post.likes = [];
                 }
 
-                try {
-                    const comments = await extractPostComments(page, post.postUrl);
-                    post.comments = comments;
-                    totalComments += comments.length;
-                } catch (e: any) {
-                    console.warn(`[comments] Failed for ${post.postUrl}: ${e.message}`);
+                if (!hasComments) {
+                    try {
+                        const comments = await extractPostComments(page, post.postUrl);
+                        post.comments = comments;
+                        totalComments += comments.length;
+                    } catch (e: any) {
+                        console.warn(`[comments] Failed for ${post.postUrl}: ${e.message}`);
+                        post.comments = [];
+                    }
+                } else {
                     post.comments = [];
                 }
 
@@ -141,7 +264,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                 await delay(Math.random() * 1000 + 500);
             }
 
-            console.log(`Extracted ${totalLikes} likes and ${totalComments} comments for ${username}`);
+            console.log(`Extracted ${totalLikes} likes and ${totalComments} comments for ${username} (skipped ${postsWithLikes.size} with existing likes, ${postsWithComments.size} with existing comments)`);
 
             // Save to DB (Prevent duplicates)
             const postsPayload = posts.map(post => ({
@@ -194,11 +317,11 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
             }
 
             // Save likes to DB
-            const likesPayload: Array<{postid: string, liker_username: string}> = [];
+            const likesPayload: Array<{postid: string, liker_username: string, perfil: string}> = [];
             for (const post of posts) {
                 if (post.likes && post.likes.length > 0) {
                     for (const liker of post.likes) {
-                        likesPayload.push({ postid: post.postId, liker_username: liker });
+                        likesPayload.push({ postid: post.postId, liker_username: liker, perfil: username });
                     }
                 }
             }
@@ -219,14 +342,15 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
             }
 
             // Save comments to DB
-            const commentsPayload: Array<{postid: string, commenter_username: string, comment_text: string}> = [];
+            const commentsPayload: Array<{postid: string, commenter_username: string, comment_text: string, perfil: string}> = [];
             for (const post of posts) {
                 if (post.comments && post.comments.length > 0) {
                     for (const comment of post.comments) {
                         commentsPayload.push({
                             postid: post.postId,
                             commenter_username: comment.username,
-                            comment_text: comment.text
+                            comment_text: comment.text,
+                            perfil: username
                         });
                     }
                 }
@@ -252,7 +376,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                 data_ultimo_scrapping: new Date().toISOString()
             }).eq('user', username);
 
-            results.push({ username, status: 'success', data: { posts: posts.length, likes: totalLikes, comments: totalComments } });
+            results.push({ username, status: 'success', data: { posts: posts.length, likes: totalLikes, comments: totalComments, bio: bio ? true : false, highlights: highlightsData.length } });
 
         } catch (e: any) {
             console.error(`Error scraping ${username}: ${e.message}`);
