@@ -43,12 +43,39 @@ create table if not exists public.scrappers_contents (
   constraint scrappers_contents_postid_key unique (postid) -- CRITICAL: Unique constraint on postid to prevent duplicates
 );
 
+-- ============================================================
+-- MIGRATION: New tables for likes and comments extraction
+-- ============================================================
+
+-- Table: post_likes
+create table if not exists public.post_likes (
+  id uuid not null default gen_random_uuid (),
+  postid text not null,
+  liker_username text not null,
+  created_at timestamp with time zone not null default now(),
+  constraint post_likes_pkey primary key (id),
+  constraint post_likes_postid_liker_key unique (postid, liker_username)
+);
+
+-- Table: post_comments
+create table if not exists public.post_comments (
+  id uuid not null default gen_random_uuid (),
+  postid text not null,
+  commenter_username text not null,
+  comment_text text not null,
+  created_at timestamp with time zone not null default now(),
+  constraint post_comments_pkey primary key (id),
+  constraint post_comments_postid_commenter_text_key unique (postid, commenter_username, comment_text)
+);
+
 -- Indices
 create index if not exists idx_scrapper_accounts_username on public.scrapper_accounts (username);
 create index if not exists idx_scrapper_accounts_is_active on public.scrapper_accounts (is_active);
 create index if not exists idx_users_scrapping_status on public.users_scrapping (status);
 create index if not exists idx_scrappers_contents_username on public.scrappers_contents (username);
 create index if not exists idx_scrappers_contents_postid on public.scrappers_contents (postid);
+create index if not exists idx_post_likes_postid on public.post_likes (postid);
+create index if not exists idx_post_comments_postid on public.post_comments (postid);
 
 -- Trigger for updated_at (reusable)
 create or replace function update_updated_at_column()
