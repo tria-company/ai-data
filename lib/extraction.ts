@@ -196,6 +196,223 @@ export async function extractCarouselImages(page: Page, postUrl: string): Promis
     }
 }
 
+export async function extractPostLikes(page: Page, postUrl: string): Promise<string[]> {
+    const newPage = await page.browser().newPage();
+    try {
+        await newPage.goto(postUrl, { waitUntil: "networkidle2", timeout: 30000 });
+        await delay(2000);
+
+        // Try to find and click the likes count to open the likes modal
+        const likesClicked = await newPage.evaluate(() => {
+            // Strategy 1: Button or link containing likes/curtidas text
+            const allElements = Array.from(document.querySelectorAll('a, button, span'));
+            for (const el of allElements) {
+                const text = (el.textContent || '').trim();
+                if (/(\d+)\s*(likes?|curtidas?)/i.test(text) || /liked by|curtido por/i.test(text)) {
+                    (el as HTMLElement).click();
+                    return true;
+                }
+            }
+            // Strategy 2: Section with aria-label related to likes
+            const ariaElements = document.querySelectorAll('[aria-label*="like"], [aria-label*="curtida"]');
+            for (const el of Array.from(ariaElements)) {
+                if (el.tagName === 'A' || el.tagName === 'BUTTON' || el.tagName === 'SPAN') {
+                    (el as HTMLElement).click();
+                    return true;
+                }
+            }
+            return false;
+        });
+
+        if (!likesClicked) {
+            console.warn(`[extractPostLikes] Could not find likes button for ${postUrl}`);
+            await newPage.close();
+            return [];
+        }
+
+        await delay(2000);
+
+        // Scroll within the likes modal to load more likers
+        for (let i = 0; i < 5; i++) {
+            await newPage.evaluate(() => {
+                const modal = document.querySelector('div[role="dialog"]');
+                if (modal) {
+                    const scrollable = modal.querySelector('div[style*="overflow"]') || modal;
+                    scrollable.scrollTop = scrollable.scrollHeight;
+                }
+            });
+            await delay(1000);
+        }
+
+        // Extract usernames from the modal
+        const usernames = await newPage.evaluate(() => {
+            const modal = document.querySelector('div[role="dialog"]');
+            if (!modal) return [];
+
+            const links = modal.querySelectorAll('a[href^="/"]');
+            const names: string[] = [];
+            const seen = new Set<string>();
+
+            for (const link of Array.from(links)) {
+                const href = link.getAttribute('href') || '';
+                // Filter profile links (single path segment like /username/)
+                const match = href.match(/^\/([a-zA-Z0-9_.]+)\/?$/);
+                if (match && match[1] !== 'explore' && match[1] !== 'accounts') {
+                    const username = match[1];
+                    if (!seen.has(username)) {
+                        seen.add(username);
+                        names.push(username);
+                    }
+                }
+            }
+            return names;
+        });
+
+        if (usernames.length === 0) {
+            console.warn(`[extractPostLikes] 0 likes extracted for ${postUrl}`);
+        }
+
+        await newPage.close();
+        return usernames;
+    } catch (e) {
+        console.warn(`[extractPostLikes] Error for ${postUrl}:`, e);
+        await newPage.close();
+        return [];
+    }
+}
+
+export async function extractPostComments(page: Page, postUrl: string): Promise<Array<{username: string, text: string}>> {
+    const newPage = await page.browser().newPage();
+    try {
+        await newPage.goto(postUrl, { waitUntil: "networkidle2", timeout: 30000 });
+        await delay(2000);
+
+        // Try to click "Load more comments" button up to 3 times
+        for (let i = 0; i < 3; i++) {
+            const clicked = await newPage.evaluate(() => {
+                const allElements = Array.from(document.querySelectorAll('button, span, a'));
+                for (const el of allElements) {
+                    const text = (el.textContent || '').trim().toLowerCase();
+                    if (
+                        text.includes('load more comments') ||
+                        text.includes('ver mais comentários') ||
+                        text.includes('ver todos os') ||
+                        text.includes('view all') ||
+                        /^\+$/.test(text) // Plus icon for more comments
+                    ) {
+                        (el as HTMLElement).click();
+                        return true;
+                    }
+                }
+                return false;
+            });
+            if (!clicked) break;
+            await delay(1500);
+        }
+
+        // Extract the post author from the URL to skip caption
+        const urlMatch = postUrl.match(/instagram\.com\/([^\/]+)/);
+        // We cannot reliably get the author from URL since post URLs are /p/CODE/
+        // Instead, we'll identify the first comment as caption by checking if it's from the page's og author
+
+        // Extract comments from the post page
+        const comments = await newPage.evaluate(() => {
+            const results: Array<{username: string, text: string}> = [];
+            const seen = new Set<string>();
+
+            // Strategy 1: Look for comment containers - typically ul > li structures
+            const commentElements = document.querySelectorAll('ul ul li, div[role="button"]');
+
+            for (const el of Array.from(commentElements)) {
+                const link = el.querySelector('a[href^="/"]');
+                if (!link) continue;
+
+                const href = link.getAttribute('href') || '';
+                const nameMatch = href.match(/^\/([a-zA-Z0-9_.]+)\/?$/);
+                if (!nameMatch) continue;
+
+                const username = nameMatch[1];
+                if (username === 'explore' || username === 'accounts') continue;
+
+                // Find comment text - typically in a span next to or near the username link
+                const spans = el.querySelectorAll('span');
+                let commentText = '';
+                for (const span of Array.from(spans)) {
+                    const spanText = (span.textContent || '').trim();
+                    // Skip very short text, timestamps, and the username itself
+                    if (
+                        spanText.length > 1 &&
+                        spanText !== username &&
+                        !/^\d+[smhdw]$/.test(spanText) && // Skip timestamps like "2h", "3d"
+                        !/^(Reply|Responder|Like|Curtir)$/i.test(spanText)
+                    ) {
+                        commentText = spanText;
+                        break;
+                    }
+                }
+
+                if (commentText) {
+                    const key = `${username}:${commentText}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        results.push({ username, text: commentText });
+                    }
+                }
+            }
+
+            // Strategy 2: If strategy 1 yielded nothing, try broader approach
+            if (results.length === 0) {
+                const allLinks = document.querySelectorAll('a[href^="/"]');
+                for (const link of Array.from(allLinks)) {
+                    const href = link.getAttribute('href') || '';
+                    const nameMatch = href.match(/^\/([a-zA-Z0-9_.]+)\/?$/);
+                    if (!nameMatch) continue;
+                    const username = nameMatch[1];
+                    if (username === 'explore' || username === 'accounts' || username === 'p' || username === 'reel') continue;
+
+                    // Look for adjacent text content
+                    const parent = link.closest('div, li');
+                    if (!parent) continue;
+
+                    const spans = parent.querySelectorAll('span');
+                    for (const span of Array.from(spans)) {
+                        const spanText = (span.textContent || '').trim();
+                        if (
+                            spanText.length > 5 &&
+                            spanText !== username &&
+                            !/^\d+[smhdw]$/.test(spanText) &&
+                            !/^(Reply|Responder|Like|Curtir|View|Ver)$/i.test(spanText)
+                        ) {
+                            const key = `${username}:${spanText}`;
+                            if (!seen.has(key)) {
+                                seen.add(key);
+                                results.push({ username, text: spanText });
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return results;
+        });
+
+        if (comments.length === 0) {
+            console.warn(`[extractPostComments] 0 comments extracted for ${postUrl}`);
+        }
+
+        // Skip the first comment if it looks like the post caption (usually from the post author)
+        // The first entry is often the caption — we keep all for now since we can't reliably detect the author
+
+        await newPage.close();
+        return comments;
+    } catch (e) {
+        console.warn(`[extractPostComments] Error for ${postUrl}:`, e);
+        await newPage.close();
+        return [];
+    }
+}
+
 export async function extractPostsData(page: Page, username: string, maxPosts = 50): Promise<any[]> {
     const posts = await page.evaluate((max) => {
         const postsData: any[] = [];
