@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [ ] 01-01-PLAN.md — Projetos table creation + list/create API routes
-- [ ] 01-02-PLAN.md — Add projeto filter to targets list API
+- [x] 01-02-PLAN.md — Add projeto filter to targets list API
 
 ### Phase 2: Project Selector
 **Goal**: User can see, select, and create projects directly in the dashboard
