@@ -7,9 +7,10 @@ interface ScrapeButtonProps {
     targetIds: number[];
     allTargets: any[];
     isAccountReady: boolean;
+    projetoId?: string | null;
 }
 
-export default function ScrapeButton({ accountId, targetIds, allTargets, isAccountReady }: ScrapeButtonProps) {
+export default function ScrapeButton({ accountId, targetIds, allTargets, isAccountReady, projetoId }: ScrapeButtonProps) {
     const [scraping, setScraping] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
     const [progress, setProgress] = useState({ current: 0, total: 0 });
@@ -42,7 +43,8 @@ export default function ScrapeButton({ accountId, targetIds, allTargets, isAccou
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             accountId,
-                            targetUsernames: [username] // Send only one user at a time
+                            targetUsernames: [username], // Send only one user at a time
+                            projetoId
                         })
                     });
 

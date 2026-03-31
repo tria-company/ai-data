@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { Target, CheckSquare, Square, X } from 'lucide-react';
 
 interface TargetUser {
@@ -11,16 +11,19 @@ interface TargetUser {
 
 interface TargetSelectorProps {
     onSelectionChange: (selectedIds: number[]) => void;
+    projeto?: string | null;
 }
 
-export default function TargetSelector({ onSelectionChange }: TargetSelectorProps) {
+export default function TargetSelector({ onSelectionChange, projeto }: TargetSelectorProps) {
     const [targets, setTargets] = useState<TargetUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [selected, setSelected] = useState<Set<number>>(new Set());
+    const isFirstRender = useRef(true);
 
     useEffect(() => {
-        // Fetch all targets to support "Select All" on the full set
-        fetch('/api/targets/list?limit=all')
+        const params = new URLSearchParams({ limit: 'all' });
+        if (projeto) params.set('projeto', projeto);
+        fetch(`/api/targets/list?${params.toString()}`)
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) {
@@ -34,7 +37,13 @@ export default function TargetSelector({ onSelectionChange }: TargetSelectorProp
                 console.error(err);
                 setLoading(false);
             });
-    }, []);
+    }, [projeto]);
+
+    // Clear selection when projeto changes (skip initial render)
+    useEffect(() => {
+        if (isFirstRender.current) { isFirstRender.current = false; return; }
+        setSelected(new Set());
+    }, [projeto]);
 
     useEffect(() => {
         onSelectionChange(Array.from(selected));
