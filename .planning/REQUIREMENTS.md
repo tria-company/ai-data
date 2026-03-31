@@ -16,10 +16,10 @@ Requirements para suporte multi-projeto. Cada um mapeia a fases do roadmap.
 
 ### Frontend — Seletor de Projeto
 
-- [ ] **UI-01**: Componente ProjectSelector exibido antes de qualquer outra seleção
-- [ ] **UI-02**: ProjectSelector lista todos os projetos disponíveis
-- [ ] **UI-03**: Botão "Novo Projeto" abre modal/input para criar projeto inline
-- [ ] **UI-04**: Projeto selecionado é visualmente destacado e persistido no estado
+- [x] **UI-01**: Componente ProjectSelector exibido antes de qualquer outra seleção
+- [x] **UI-02**: ProjectSelector lista todos os projetos disponíveis
+- [x] **UI-03**: Botão "Novo Projeto" abre modal/input para criar projeto inline
+- [x] **UI-04**: Projeto selecionado é visualmente destacado e persistido no estado
 
 ### Frontend — Integração
 
@@ -54,10 +54,10 @@ Requirements para suporte multi-projeto. Cada um mapeia a fases do roadmap.
 | DB-02 | Phase 1 | Complete |
 | DB-03 | Phase 1 | Complete |
 | DB-04 | Phase 1 | Complete |
-| UI-01 | Phase 2 | Pending |
-| UI-02 | Phase 2 | Pending |
-| UI-03 | Phase 2 | Pending |
-| UI-04 | Phase 2 | Pending |
+| UI-01 | Phase 2 | Complete |
+| UI-02 | Phase 2 | Complete |
+| UI-03 | Phase 2 | Complete |
+| UI-04 | Phase 2 | Complete |
 | INT-01 | Phase 3 | Pending |
 | INT-02 | Phase 3 | Pending |
 | INT-03 | Phase 3 | Pending |

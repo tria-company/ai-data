@@ -46,7 +46,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 02-01-PLAN.md — ProjectSelector component + page.tsx integration
+- [x] 02-01-PLAN.md — ProjectSelector component + page.tsx integration
 
 ### Phase 3: Integration
 **Goal**: The entire scraping workflow respects the selected project -- targets filtered, scrape requests tagged, layout reordered
