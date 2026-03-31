@@ -27,10 +27,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. GET /api/projetos/list returns all registered projects as JSON
   3. POST /api/projetos/create creates a new project and returns it
   4. GET /api/targets/list?projeto=X returns only targets matching that project
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: TBD
+- [ ] 01-01-PLAN.md — Projetos table creation + list/create API routes
+- [ ] 01-02-PLAN.md — Add projeto filter to targets list API
 
 ### Phase 2: Project Selector
 **Goal**: User can see, select, and create projects directly in the dashboard
@@ -69,6 +70,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Backend Foundation | 0/? | Not started | - |
+| 1. Backend Foundation | 0/2 | Not started | - |
 | 2. Project Selector | 0/? | Not started | - |
 | 3. Integration | 0/? | Not started | - |
