@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status');
+    const projeto = searchParams.get('projeto');
     const limitParam = searchParams.get('limit');
     // If limit is '0' or 'all', we set a flag to fetch all.
     const fetchAll = (limitParam === '0' || limitParam === 'all');
@@ -27,6 +28,10 @@ export async function GET(request: NextRequest) {
 
             if (status) {
                 query = query.eq('status', status);
+            }
+
+            if (projeto) {
+                query = query.eq('projeto', projeto);
             }
 
             const { data, error } = await query;
