@@ -57,11 +57,11 @@ Plans:
   2. AccountSelector remains unchanged and shared across all projects
   3. Clicking Scrape sends the selected project along with the request payload
   4. Dashboard layout follows the order: Project > Agent > Targets > Execute
-**Plans**: TBD
+**Plans**: 1 plan
 **UI hint**: yes
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md — Wire selectedProjetoId through TargetSelector, ScrapeButton, and page.tsx
 
 ## Progress
 
@@ -72,4 +72,4 @@ Phases execute in numeric order: 1 -> 2 -> 3
 |-------|----------------|--------|-----------|
 | 1. Backend Foundation | 2/2 | Complete | - |
 | 2. Project Selector | 0/1 | Not started | - |
-| 3. Integration | 0/? | Not started | - |
+| 3. Integration | 0/1 | Not started | - |
