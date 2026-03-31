@@ -41,7 +41,7 @@ export async function performLogin(accountId: string) {
 }
 
 // Scrape Function
-export async function scrapeAccounts(targetUsernames: string[], accountId: string): Promise<ScrapeResult[]> {
+export async function scrapeAccounts(targetUsernames: string[], accountId: string, projetoId: string | null = null): Promise<ScrapeResult[]> {
     // Get credentials/cookies
     const { data: account } = await supabase.from('scrapper_accounts').select('*').eq('id', accountId).single();
     if (!account || !account.session_cookies) throw new Error("Account not ready (no cookies)");
@@ -121,7 +121,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                     console.log(`📝 Bio for ${username}: "${bio.substring(0, 80)}${bio.length > 80 ? '...' : ''}"`);
                     await supabase
                         .from('profile_bio')
-                        .upsert({ username: cleanUsername, bio, updated_at: new Date().toISOString() }, {
+                        .upsert({ username: cleanUsername, bio, updated_at: new Date().toISOString(), ...(projetoId ? { projeto: projetoId } : {}) }, {
                             onConflict: 'username'
                         });
                 }
@@ -143,7 +143,8 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                             .upsert({
                                 username: cleanUsername,
                                 title: hl.title,
-                                cover_url: hl.coverUrl
+                                cover_url: hl.coverUrl,
+                                ...(projetoId ? { projeto: projetoId } : {})
                             }, {
                                 onConflict: 'username,title'
                             })
@@ -160,7 +161,8 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                             const itemsPayload = hl.items.map((item: any) => ({
                                 highlight_id: hlRow.id,
                                 media_url: item.mediaUrl,
-                                media_type: item.mediaType
+                                media_type: item.mediaType,
+                                ...(projetoId ? { projeto: projetoId } : {})
                             }));
 
                             const { error: itemsError } = await supabase
@@ -278,7 +280,8 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                 videourl: post.videoUrl || null,
                 iscarousel: post.isCarousel,
                 carouselimages: post.carouselImages || [],
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                ...(projetoId ? { projeto: projetoId } : {})
             }));
 
             if (postsPayload.length > 0) {
@@ -317,11 +320,11 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
             }
 
             // Save likes to DB
-            const likesPayload: Array<{postid: string, liker_username: string, perfil: string}> = [];
+            const likesPayload: Array<{postid: string, liker_username: string, perfil: string, projeto?: string}> = [];
             for (const post of posts) {
                 if (post.likes && post.likes.length > 0) {
                     for (const liker of post.likes) {
-                        likesPayload.push({ postid: post.postId, liker_username: liker, perfil: username });
+                        likesPayload.push({ postid: post.postId, liker_username: liker, perfil: username, ...(projetoId ? { projeto: projetoId } : {}) });
                     }
                 }
             }
@@ -342,7 +345,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
             }
 
             // Save comments to DB
-            const commentsPayload: Array<{postid: string, commenter_username: string, comment_text: string, perfil: string}> = [];
+            const commentsPayload: Array<{postid: string, commenter_username: string, comment_text: string, perfil: string, projeto?: string}> = [];
             for (const post of posts) {
                 if (post.comments && post.comments.length > 0) {
                     for (const comment of post.comments) {
@@ -350,7 +353,8 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                             postid: post.postId,
                             commenter_username: comment.username,
                             comment_text: comment.text,
-                            perfil: username
+                            perfil: username,
+                            ...(projetoId ? { projeto: projetoId } : {})
                         });
                     }
                 }

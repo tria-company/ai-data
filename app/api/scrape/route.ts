@@ -7,13 +7,13 @@ export const maxDuration = 300;
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { accountId, targetUsernames } = body;
+        const { accountId, targetUsernames, projetoId } = body;
 
         if (!accountId || !targetUsernames || !Array.isArray(targetUsernames)) {
             return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
         }
 
-        const results = await scrapeAccounts(targetUsernames, accountId);
+        const results = await scrapeAccounts(targetUsernames, accountId, projetoId || null);
 
         return NextResponse.json({ results });
     } catch (error: any) {

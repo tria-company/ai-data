@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { Target, CheckSquare, Square, X } from 'lucide-react';
+import { Target, CheckSquare, Square, X, Plus, Loader2 } from 'lucide-react';
 
 interface TargetUser {
     id: number;
@@ -19,6 +19,9 @@ export default function TargetSelector({ onSelectionChange, projeto }: TargetSel
     const [loading, setLoading] = useState(true);
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const isFirstRender = useRef(true);
+    const [newTargets, setNewTargets] = useState('');
+    const [adding, setAdding] = useState(false);
+    const [refreshCount, setRefreshCount] = useState(0);
 
     useEffect(() => {
         const params = new URLSearchParams({ limit: 'all' });
@@ -37,7 +40,7 @@ export default function TargetSelector({ onSelectionChange, projeto }: TargetSel
                 console.error(err);
                 setLoading(false);
             });
-    }, [projeto]);
+    }, [projeto, refreshCount]);
 
     // Clear selection when projeto changes (skip initial render)
     useEffect(() => {
@@ -80,10 +83,57 @@ export default function TargetSelector({ onSelectionChange, projeto }: TargetSel
         return targets.filter(t => selected.has(t.id));
     }, [targets, selected]);
 
+    const handleAddTargets = async () => {
+        const usernames = newTargets
+            .split(/[,\n]+/)
+            .map(u => u.trim().replace(/^@/, ''))
+            .filter(u => u.length > 0);
+        if (usernames.length === 0 || adding) return;
+
+        setAdding(true);
+        try {
+            const res = await fetch('/api/targets/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usernames, projeto }),
+            });
+            if (res.status === 201) {
+                setNewTargets('');
+                setRefreshCount(c => c + 1);
+            } else {
+                const err = await res.json();
+                console.error('Failed to add targets:', err);
+            }
+        } catch (err) {
+            console.error('Error adding targets:', err);
+        } finally {
+            setAdding(false);
+        }
+    };
+
     if (loading) return <div>Loading targets...</div>;
 
     return (
         <div className="space-y-2">
+            {/* Add new targets */}
+            <div className="flex items-start gap-2">
+                <textarea
+                    placeholder="Adicionar alvos (separados por vírgula ou nova linha)..."
+                    value={newTargets}
+                    onChange={e => setNewTargets(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddTargets(); } }}
+                    rows={2}
+                    className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors resize-none"
+                />
+                <button
+                    onClick={handleAddTargets}
+                    disabled={adding || !newTargets.trim()}
+                    className={`bg-purple-600 hover:bg-purple-700 rounded-lg p-2 transition-colors mt-0.5 ${adding || !newTargets.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                    {adding ? <Loader2 className="h-4 w-4 text-white animate-spin" /> : <Plus className="h-4 w-4 text-white" />}
+                </button>
+            </div>
+
             <div className="flex justify-between items-center mb-2">
                 <label className="block text-sm font-medium text-gray-300">
                     Alvos ({selected.size}/{targets.length})
