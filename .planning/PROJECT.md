@@ -17,15 +17,15 @@ Usuário pode selecionar um projeto e ver/executar scraping apenas dos alvos vin
 - ✓ Seleção de alvos (targets) com multi-select — existing
 - ✓ Execução de scraping com feedback visual — existing
 - ✓ Campo `projeto text null` já adicionado em todas as tabelas (exceto accounts) — existing
+- ✓ Tabela `projetos` no Supabase para cadastro de projetos — Phase 1
+- ✓ API para listar, criar e gerenciar projetos — Phase 1
+- ✓ API de targets filtrada por projeto — Phase 1
 
 ### Active
 
-- [ ] Tabela `projetos` no Supabase para cadastro de projetos
-- [ ] API para listar, criar e gerenciar projetos
 - [ ] Seletor de projeto no frontend (antes de tudo)
 - [ ] Botão para adicionar novos projetos
 - [ ] TargetSelector filtrado pelo projeto selecionado
-- [ ] API de targets filtrada por projeto
 - [ ] Scraping vinculado ao projeto selecionado
 - [ ] AccountSelector permanece compartilhado (sem filtro de projeto)
 
@@ -75,4 +75,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-31 after initialization*
+*Last updated: 2026-03-31 after Phase 1 completion*
