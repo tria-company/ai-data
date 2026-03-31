@@ -42,11 +42,11 @@ Plans:
   2. The selector lists all projects fetched from the API
   3. User can create a new project inline without leaving the page
   4. The currently selected project is visually highlighted and stored in component state
-**Plans**: TBD
+**Plans**: 1 plan
 **UI hint**: yes
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md — ProjectSelector component + page.tsx integration
 
 ### Phase 3: Integration
 **Goal**: The entire scraping workflow respects the selected project -- targets filtered, scrape requests tagged, layout reordered
@@ -70,6 +70,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Backend Foundation | 0/2 | Not started | - |
-| 2. Project Selector | 0/? | Not started | - |
+| 1. Backend Foundation | 2/2 | Complete | - |
+| 2. Project Selector | 0/1 | Not started | - |
 | 3. Integration | 0/? | Not started | - |
