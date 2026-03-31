@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import ProjectSelector from '@/components/ProjectSelector';
 import AccountSelector from '@/components/AccountSelector';
 import TargetSelector from '@/components/TargetSelector';
 import LoginButton from '@/components/LoginButton';
@@ -9,6 +10,7 @@ import ScrapeButton from '@/components/ScrapeButton';
 import { Instagram } from 'lucide-react';
 
 export default function Home() {
+  const [selectedProjetoId, setSelectedProjetoId] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<any | null>(null);
   const [selectedTargetIds, setSelectedTargetIds] = useState<number[]>([]);
@@ -45,6 +47,15 @@ export default function Home() {
             </h1>
             <p className="text-gray-500">Web Dashboard &bull; Vercel &bull; Supabase</p>
           </div>
+        </div>
+
+        {/* Project Selector -- full width, before the grid */}
+        <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 shadow-sm">
+          <h2 className="text-xl font-semibold mb-4 text-gray-200">Projeto</h2>
+          <ProjectSelector
+            onSelect={(projeto) => setSelectedProjetoId(projeto.id)}
+            selectedProjetoId={selectedProjetoId}
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
