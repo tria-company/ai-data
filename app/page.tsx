@@ -26,11 +26,13 @@ export default function Home() {
   // Refetching is easiest for now.
 
   useEffect(() => {
-    fetch('/api/targets/list?limit=all')
+    const params = new URLSearchParams({ limit: 'all' });
+    if (selectedProjetoId) params.set('projeto', selectedProjetoId);
+    fetch(`/api/targets/list?${params.toString()}`)
       .then(r => r.json())
       .then(setAllTargets)
       .catch(console.error);
-  }, []);
+  }, [selectedProjetoId]);
 
   return (
     <main className="min-h-screen bg-[#0f1115] text-white p-8 font-sans">
@@ -53,7 +55,10 @@ export default function Home() {
         <div className="bg-gray-900/50 p-6 rounded-2xl border border-gray-800 shadow-sm">
           <h2 className="text-xl font-semibold mb-4 text-gray-200">Projeto</h2>
           <ProjectSelector
-            onSelect={(projeto) => setSelectedProjetoId(projeto.id)}
+            onSelect={(projeto) => {
+              setSelectedProjetoId(projeto.id);
+              setSelectedTargetIds([]);
+            }}
             selectedProjetoId={selectedProjetoId}
           />
         </div>
@@ -105,6 +110,7 @@ export default function Home() {
               <h2 className="text-xl font-semibold mb-4 text-gray-200">2. Selecionar Alvos</h2>
               <TargetSelector
                 onSelectionChange={setSelectedTargetIds}
+                projeto={selectedProjetoId}
               />
             </div>
           </div>
@@ -123,6 +129,7 @@ export default function Home() {
                 targetIds={selectedTargetIds}
                 allTargets={allTargets}
                 isAccountReady={!!selectedAccount?.last_login}
+                projetoId={selectedProjetoId}
               />
             </div>
           </div>
