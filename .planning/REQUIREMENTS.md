@@ -9,9 +9,9 @@ Requirements para suporte multi-projeto. Cada um mapeia a fases do roadmap.
 
 ### Backend / Database
 
-- [ ] **DB-01**: Tabela `projetos` criada no Supabase com campos: id (uuid), nome (text), criado_em (timestamp)
-- [ ] **DB-02**: API GET /api/projetos/list retorna lista de todos os projetos
-- [ ] **DB-03**: API POST /api/projetos/create permite criar novo projeto
+- [x] **DB-01**: Tabela `projetos` criada no Supabase com campos: id (uuid), nome (text), criado_em (timestamp)
+- [x] **DB-02**: API GET /api/projetos/list retorna lista de todos os projetos
+- [x] **DB-03**: API POST /api/projetos/create permite criar novo projeto
 - [x] **DB-04**: API GET /api/targets/list aceita query param `projeto` e filtra resultados
 
 ### Frontend — Seletor de Projeto
@@ -50,9 +50,9 @@ Requirements para suporte multi-projeto. Cada um mapeia a fases do roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DB-01 | Phase 1 | Pending |
-| DB-02 | Phase 1 | Pending |
-| DB-03 | Phase 1 | Pending |
+| DB-01 | Phase 1 | Complete |
+| DB-02 | Phase 1 | Complete |
+| DB-03 | Phase 1 | Complete |
 | DB-04 | Phase 1 | Complete |
 | UI-01 | Phase 2 | Pending |
 | UI-02 | Phase 2 | Pending |
