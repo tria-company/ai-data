@@ -83,6 +83,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260401-m18 | Add real-time streaming logs from server scraper to UI via SSE | 2026-04-01 | 069646e | [260401-m18-add-real-time-streaming-logs-from-server](./quick/260401-m18-add-real-time-streaming-logs-from-server/) |
+| 260401-n7s | Fix extractHighlights story image and next button selectors | 2026-04-01 | 4936dbb | [260401-n7s-fix-extracthighlights-story-image-and-ne](./quick/260401-n7s-fix-extracthighlights-story-image-and-ne/) |
 
 ## Session Continuity
 
