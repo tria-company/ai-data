@@ -637,12 +637,14 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
                         for (const vid of Array.from(videos)) {
                             const src = vid.src || vid.querySelector('source')?.src || '';
                             if (src) {
-                                // Return blob URL as marker - we'll replace with captured network URL
+                                // Try to trigger video load (preload="none" prevents auto-fetch)
+                                try { vid.play().catch(() => {}); } catch {}
                                 return { mediaUrl: src.startsWith('blob:') ? 'VIDEO_BLOB_DETECTED' : src, mediaType: 'video' as const };
                             }
                         }
 
                         // Story images use img[draggable="false"] with large dimensions
+                        // Filter by class xl1xv1r (story content image) to avoid matching avatar
                         const imgs = document.querySelectorAll('img[draggable="false"], img[decoding="sync"], img[style*="object-fit"], img[sizes]');
                         for (const img of Array.from(imgs)) {
                             const src = (img as HTMLImageElement).src;
@@ -670,29 +672,40 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
                     if (item) {
                         let resolvedItem = item;
 
-                        // For blob videos, use the captured network URL
-                        if (item.mediaUrl === 'VIDEO_BLOB_DETECTED' && capturedVideoUrls.length > 0) {
-                            // Use the most recently captured video URL
-                            resolvedItem = { mediaUrl: capturedVideoUrls[capturedVideoUrls.length - 1], mediaType: 'video' };
-                        } else if (item.mediaUrl === 'VIDEO_BLOB_DETECTED') {
-                            // No network URL captured yet, skip but don't count as empty
-                            attempts++;
-                            continue;
+                        if (item.mediaUrl === 'VIDEO_BLOB_DETECTED') {
+                            // Wait a bit for video to load after play() trigger
+                            await delay(2000);
+
+                            if (capturedVideoUrls.length > 0) {
+                                // Use the most recently captured video URL
+                                resolvedItem = { mediaUrl: capturedVideoUrls[capturedVideoUrls.length - 1], mediaType: 'video' };
+                                if (onLog) onLog(`[extractHighlights] Video URL captured from network: ${resolvedItem.mediaUrl.substring(0, 80)}...`);
+                            } else {
+                                // No network URL captured - save as video placeholder and move on
+                                if (onLog) onLog(`[extractHighlights] Video detected (blob URL) but could not capture network URL, skipping`);
+                                // Don't add to items, just move to next story
+                            }
                         }
 
-                        if (!items.some(i => i.mediaUrl === resolvedItem.mediaUrl)) {
-                            items.push(resolvedItem);
-                            consecutiveEmpty = 0;
-                        } else {
-                            consecutiveEmpty++;
-                            if (consecutiveEmpty >= 3) break;
+                        if (resolvedItem.mediaUrl !== 'VIDEO_BLOB_DETECTED') {
+                            if (!items.some(i => i.mediaUrl === resolvedItem.mediaUrl)) {
+                                items.push(resolvedItem);
+                                if (onLog) onLog(`[extractHighlights] Item ${items.length}: ${resolvedItem.mediaType} - ${resolvedItem.mediaUrl.substring(0, 80)}...`);
+                                consecutiveEmpty = 0;
+                            } else {
+                                consecutiveEmpty++;
+                                if (consecutiveEmpty >= 3) break;
+                            }
                         }
                     } else {
+                        if (onLog) onLog(`[extractHighlights] No media found on attempt ${attempts + 1}`);
                         consecutiveEmpty++;
                         if (consecutiveEmpty >= 3) break;
                     }
 
                     // Click "Next" to advance to next story in this highlight
+                    // Clear captured video URLs for next story
+                    capturedVideoUrls.length = 0;
                     const navigated = await page.evaluate(() => {
                         const nextLabels = ['Next', 'Avançar', 'Próximo', 'Siguiente'];
 
@@ -731,7 +744,10 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
                         return 'end';
                     });
 
-                    if (navigated === 'end') break;
+                    if (navigated === 'end') {
+                        if (onLog) onLog(`[extractHighlights] No next button found, ending`);
+                        break;
+                    }
 
                     await delay(1500);
                     attempts++;
