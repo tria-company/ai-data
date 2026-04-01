@@ -43,44 +43,62 @@ export default function ScrapeButton({ accountId, targetIds, allTargets, isAccou
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             accountId,
-                            targetUsernames: [username], // Send only one user at a time
+                            targetUsernames: [username],
                             projetoId
                         })
                     });
 
-                    let data;
-                    try {
-                        const text = await res.text();
-                        try {
-                            data = JSON.parse(text);
-                        } catch (e) {
-                            // If parsing fails, it's likely an HTML error page (504 Timeout, 500 Error, etc.)
-                            if (res.status === 504) {
-                                throw new Error('Tempo limite excedido (300s). O Instagram demorou muito para responder.');
-                            }
-                            throw new Error(`Erro do Servidor (${res.status}): Resposta inválida.`);
-                        }
-                    } catch (parseErr: any) {
-                        throw new Error(parseErr.message || 'Falha ao processar resposta do servidor');
-                    }
-
                     if (!res.ok) {
-                        addLog(`❌ Erro no @${username}: ${data?.error || 'Falha desconhecida'}`);
+                        const errorText = await res.text();
+                        let errorMsg = 'Falha desconhecida';
+                        try { errorMsg = JSON.parse(errorText).error || errorMsg; } catch {}
+                        addLog(`Error @${username}: ${errorMsg}`);
                         continue;
                     }
 
+                    const reader = res.body?.getReader();
+                    if (!reader) {
+                        addLog(`Error @${username}: No stream available`);
+                        continue;
+                    }
 
-                    const result = data.results[0]; // expect array of 1
-                    if (result?.status === 'success') {
-                        addLog(`✅ Sucesso @${username}: ${result.postsFound ?? '?'} posts.`);
-                    } else if (result?.status === 'failed') {
-                        addLog(`⚠️ Falha @${username}: ${result.error}`);
-                    } else {
-                        addLog(`❓ Status incerto @${username}`);
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+                    let scrapeResult: any = null;
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n\n');
+                        buffer = lines.pop() || '';
+
+                        for (const line of lines) {
+                            const dataMatch = line.match(/^data: (.+)$/m);
+                            if (!dataMatch) continue;
+
+                            try {
+                                const event = JSON.parse(dataMatch[1]);
+                                if (event.type === 'log') {
+                                    addLog(event.message);
+                                } else if (event.type === 'complete') {
+                                    scrapeResult = event.results?.[0];
+                                } else if (event.type === 'error') {
+                                    addLog(`Error: ${event.message}`);
+                                }
+                            } catch {}
+                        }
+                    }
+
+                    if (scrapeResult?.status === 'success') {
+                        addLog(`Done @${username}: ${scrapeResult.postsFound ?? '?'} posts.`);
+                    } else if (scrapeResult?.status === 'failed') {
+                        addLog(`Failed @${username}: ${scrapeResult.error}`);
                     }
 
                 } catch (reqErr: any) {
-                    addLog(`❌ Erro de requisição para @${username}: ${reqErr.message}`);
+                    addLog(`Erro de requisicao para @${username}: ${reqErr.message}`);
                 }
 
                 setProgress(p => ({ ...p, current: i + 1 }));
