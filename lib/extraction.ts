@@ -527,29 +527,21 @@ export async function extractBio(page: Page, onLog?: (msg: string) => void): Pro
 export interface HighlightData {
     title: string;
     coverUrl: string | null;
-    items: Array<{
-        mediaUrl: string;
-        mediaType: 'image' | 'video';
-    }>;
+    highlightUrl: string;
 }
 
 export async function extractHighlights(page: Page, username: string, onLog?: (msg: string) => void): Promise<HighlightData[]> {
     const highlights: HighlightData[] = [];
 
     try {
-        // Instagram highlights are in a <ul> with <li> items, each containing:
-        // <a aria-label="Ver destaque de TITLE" href="/stories/highlights/ID/" class="... _a6hd">
-        //   <img height="72" width="72" class="xz74otr..." src="COVER_URL">
-        //   <span class="x1lliihq x193iq5w x6ikm8r x10wlt62 xlyipyv xuxw1ft">TITLE</span>
         const highlightItems = await page.evaluate(() => {
             const items: Array<{ href: string; title: string; coverUrl: string | null }> = [];
 
-            // Find all highlight links by their href pattern
             const highlightLinks = document.querySelectorAll('a[href*="/stories/highlights/"]');
             for (const link of Array.from(highlightLinks)) {
                 const href = link.getAttribute('href') || '';
 
-                // Extract title from aria-label (most reliable: "Ver destaque de TITLE")
+                // Extract title from aria-label ("Ver destaque de TITLE")
                 const ariaLabel = link.getAttribute('aria-label') || '';
                 let title = '';
                 const labelMatch = ariaLabel.match(/Ver destaque de (.+)/i) || ariaLabel.match(/View (.+) highlight/i);
@@ -557,19 +549,18 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
                     title = labelMatch[1].trim();
                 }
 
-                // Fallback: get title from the inner span
+                // Fallback: get title from inner span
                 if (!title) {
                     const spans = link.querySelectorAll('span');
                     for (const span of Array.from(spans)) {
                         const text = (span.textContent || '').trim();
-                        // The title span is the deepest one with actual text
                         if (text.length > 0 && text.length < 60 && !text.includes('http')) {
                             title = text;
                         }
                     }
                 }
 
-                // Get cover image (72x72 thumbnail)
+                // Get cover image
                 const img = link.querySelector('img[height="72"], img[width="72"]') ||
                     link.querySelector('img');
                 const coverUrl = img ? (img as HTMLImageElement).src : null;
@@ -587,197 +578,23 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
         });
 
         if (highlightItems.length === 0) {
-            console.log(`[extractHighlights] No highlights found for ${username}`);
             if (onLog) onLog(`[extractHighlights] No highlights found for ${username}`);
             return [];
         }
 
-        console.log(`[extractHighlights] Found ${highlightItems.length} highlights for ${username}`);
-        if (onLog) onLog(`[extractHighlights] Found ${highlightItems.length} highlights for ${username}`);
-
-        // Navigate to each highlight and extract all stories
         for (const hl of highlightItems) {
-            try {
-                // Navigate directly to the highlight URL (more reliable than clicking)
-                const highlightUrl = hl.href.startsWith('http')
-                    ? hl.href
-                    : `https://www.instagram.com${hl.href}`;
+            const highlightUrl = hl.href.startsWith('http')
+                ? hl.href
+                : `https://www.instagram.com${hl.href}`;
 
-                // Set up network interception to capture video URLs
-                // Instagram stories use blob: URLs for videos, but the actual .mp4 is fetched via network
-                const capturedVideoUrls: string[] = [];
-                const responseHandler = (response: any) => {
-                    const url = response.url();
-                    if (url.includes('.mp4') || (url.includes('video') && url.includes('fbcdn'))) {
-                        capturedVideoUrls.push(url);
-                    }
-                };
-                page.on('response', responseHandler);
-
-                await page.goto(highlightUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-                await delay(3000);
-
-                const items: Array<{ mediaUrl: string; mediaType: 'image' | 'video' }> = [];
-                let attempts = 0;
-                const maxAttempts = 50; // Max stories per highlight
-                let consecutiveEmpty = 0;
-
-                while (attempts < maxAttempts) {
-                    // Wait for story content to load
-                    await delay(1500);
-
-                    // Extract current story media
-                    const item = await page.evaluate(() => {
-                        const isSmallThumbnail = (src: string) =>
-                            src.includes('s150x150') || src.includes('s64x64') ||
-                            src.includes('s32x32') || src.includes('_s150x150');
-
-                        // Check for video first - detect presence of video element (even with blob: src)
-                        const videos = document.querySelectorAll('video');
-                        for (const vid of Array.from(videos)) {
-                            const src = vid.src || vid.querySelector('source')?.src || '';
-                            if (src) {
-                                // Try to trigger video load (preload="none" prevents auto-fetch)
-                                try { vid.play().catch(() => {}); } catch {}
-                                return { mediaUrl: src.startsWith('blob:') ? 'VIDEO_BLOB_DETECTED' : src, mediaType: 'video' as const };
-                            }
-                        }
-
-                        // Story images use img[draggable="false"] with large dimensions
-                        // Filter by class xl1xv1r (story content image) to avoid matching avatar
-                        const imgs = document.querySelectorAll('img[draggable="false"], img[decoding="sync"], img[style*="object-fit"], img[sizes]');
-                        for (const img of Array.from(imgs)) {
-                            const src = (img as HTMLImageElement).src;
-                            if (!src || isSmallThumbnail(src)) continue;
-                            const rect = (img as HTMLElement).getBoundingClientRect();
-                            if (rect.width > 200 && rect.height > 200) {
-                                return { mediaUrl: src, mediaType: 'image' as const };
-                            }
-                        }
-
-                        // Broader fallback: any large image
-                        const allImgs = document.querySelectorAll('img');
-                        for (const img of Array.from(allImgs)) {
-                            const src = (img as HTMLImageElement).src;
-                            if (!src || isSmallThumbnail(src)) continue;
-                            const rect = (img as HTMLElement).getBoundingClientRect();
-                            if (rect.width > 200 && rect.height > 200) {
-                                return { mediaUrl: src, mediaType: 'image' as const };
-                            }
-                        }
-
-                        return null;
-                    });
-
-                    if (item) {
-                        let resolvedItem = item;
-
-                        if (item.mediaUrl === 'VIDEO_BLOB_DETECTED') {
-                            // Wait a bit for video to load after play() trigger
-                            await delay(2000);
-
-                            if (capturedVideoUrls.length > 0) {
-                                // Use the most recently captured video URL
-                                resolvedItem = { mediaUrl: capturedVideoUrls[capturedVideoUrls.length - 1], mediaType: 'video' };
-                                if (onLog) onLog(`[extractHighlights] Video URL captured from network: ${resolvedItem.mediaUrl.substring(0, 80)}...`);
-                            } else {
-                                // No network URL captured - save as video placeholder and move on
-                                if (onLog) onLog(`[extractHighlights] Video detected (blob URL) but could not capture network URL, skipping`);
-                                // Don't add to items, just move to next story
-                            }
-                        }
-
-                        if (resolvedItem.mediaUrl !== 'VIDEO_BLOB_DETECTED') {
-                            if (!items.some(i => i.mediaUrl === resolvedItem.mediaUrl)) {
-                                items.push(resolvedItem);
-                                if (onLog) onLog(`[extractHighlights] Item ${items.length}: ${resolvedItem.mediaType} - ${resolvedItem.mediaUrl.substring(0, 80)}...`);
-                                consecutiveEmpty = 0;
-                            } else {
-                                consecutiveEmpty++;
-                                if (consecutiveEmpty >= 3) break;
-                            }
-                        }
-                    } else {
-                        if (onLog) onLog(`[extractHighlights] No media found on attempt ${attempts + 1}`);
-                        consecutiveEmpty++;
-                        if (consecutiveEmpty >= 3) break;
-                    }
-
-                    // Click "Next" to advance to next story in this highlight
-                    // Clear captured video URLs for next story
-                    capturedVideoUrls.length = 0;
-                    const navigated = await page.evaluate(() => {
-                        const nextLabels = ['Next', 'Avançar', 'Próximo', 'Siguiente'];
-
-                        // Strategy 1: button or div[role="button"] with aria-label
-                        for (const label of nextLabels) {
-                            const btn = document.querySelector(`button[aria-label="${label}"], div[role="button"][aria-label="${label}"]`);
-                            if (btn) {
-                                (btn as HTMLElement).click();
-                                return 'next';
-                            }
-                        }
-
-                        // Strategy 2: div[role="button"] containing svg with aria-label (Instagram's actual structure)
-                        for (const label of nextLabels) {
-                            const svg = document.querySelector(`svg[aria-label="${label}"]`);
-                            if (svg) {
-                                const btn = svg.closest('div[role="button"]') || svg.parentElement;
-                                if (btn) {
-                                    (btn as HTMLElement).click();
-                                    return 'next';
-                                }
-                            }
-                        }
-
-                        // Strategy 3: The right-side clickable area in story viewer
-                        const buttons = document.querySelectorAll('div[role="button"]');
-                        const rightButtons = Array.from(buttons).filter(b => {
-                            const rect = b.getBoundingClientRect();
-                            return rect.left > window.innerWidth / 2 && rect.height > 100;
-                        });
-                        if (rightButtons.length > 0) {
-                            (rightButtons[0] as HTMLElement).click();
-                            return 'next';
-                        }
-
-                        return 'end';
-                    });
-
-                    if (navigated === 'end') {
-                        if (onLog) onLog(`[extractHighlights] No next button found, ending`);
-                        break;
-                    }
-
-                    await delay(1500);
-                    attempts++;
-
-                    // Check if we're still in a story viewer (didn't navigate away)
-                    const currentUrl = page.url();
-                    if (!currentUrl.includes('/stories/')) break;
-                }
-
-                // Clean up network listener
-                page.off('response', responseHandler);
-
-                highlights.push({
-                    title: hl.title,
-                    coverUrl: hl.coverUrl,
-                    items
-                });
-
-                console.log(`[extractHighlights] "${hl.title}": ${items.length} items extracted`);
-                if (onLog) onLog(`[extractHighlights] "${hl.title}": ${items.length} items extracted`);
-
-            } catch (e) {
-                console.warn(`[extractHighlights] Error extracting highlight "${hl.title}":`, e);
-                if (onLog) onLog(`[extractHighlights] Error extracting highlight "${hl.title}": ${e}`);
-            }
-
-            // Always go back to profile before next highlight
-            await page.goto(`https://www.instagram.com/${username}/`, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-            await delay(1500);
+            highlights.push({
+                title: hl.title,
+                coverUrl: hl.coverUrl,
+                highlightUrl
+            });
         }
+
+        if (onLog) onLog(`[extractHighlights] Found ${highlights.length} highlights for ${username}`);
 
     } catch (e) {
         console.warn(`[extractHighlights] Error for ${username}:`, e);

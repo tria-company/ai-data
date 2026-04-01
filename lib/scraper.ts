@@ -144,52 +144,25 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                     log(`Found ${highlightsData.length} highlights for ${username}`);
 
                     for (const hl of highlightsData) {
-                        // Upsert the highlight
-                        const { data: hlRow, error: hlError } = await supabase
+                        const { error: hlError } = await supabase
                             .from('profile_highlights')
                             .upsert({
                                 username: cleanUsername,
                                 title: hl.title,
                                 cover_url: hl.coverUrl,
+                                highlight_url: hl.highlightUrl,
                                 ...(projetoId ? { projeto: projetoId } : {})
                             }, {
                                 onConflict: 'username,title'
-                            })
-                            .select('id')
-                            .single();
+                            });
 
-                        if (hlError || !hlRow) {
+                        if (hlError) {
                             logError(`Error saving highlight "${hl.title}": ${hlError}`);
-                            continue;
-                        }
-
-                        // Save highlight items
-                        if (hl.items.length > 0) {
-                            const itemsPayload = hl.items.map((item: any) => ({
-                                highlight_id: hlRow.id,
-                                media_url: item.mediaUrl,
-                                media_type: item.mediaType,
-                                ...(projetoId ? { projeto: projetoId } : {})
-                            }));
-
-                            const { error: itemsError } = await supabase
-                                .from('profile_highlight_items')
-                                .upsert(itemsPayload, {
-                                    onConflict: 'highlight_id,media_url',
-                                    ignoreDuplicates: true
-                                });
-
-                            if (itemsError) {
-                                logError(`Error saving highlight items for "${hl.title}": ${itemsError}`);
-                            }
                         }
                     }
                 }
             } catch (e: any) {
                 logWarn(`[highlights] Failed for ${username}: ${e.message}`);
-                // Navigate back to profile in case highlights extraction left us elsewhere
-                await page.goto(`https://www.instagram.com/${cleanUsername}/`, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
-                await delay(1500);
             }
 
             await scrollToBottom(page, username, 50, onLog);

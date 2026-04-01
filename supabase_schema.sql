@@ -89,6 +89,7 @@ create table if not exists public.profile_highlights (
   username text not null,
   title text not null,
   cover_url text null,
+  highlight_url text null,
   created_at timestamp with time zone not null default now(),
   constraint profile_highlights_pkey primary key (id),
   constraint profile_highlights_username_title_key unique (username, title)
