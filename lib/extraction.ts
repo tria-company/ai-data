@@ -603,6 +603,17 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
                     ? hl.href
                     : `https://www.instagram.com${hl.href}`;
 
+                // Set up network interception to capture video URLs
+                // Instagram stories use blob: URLs for videos, but the actual .mp4 is fetched via network
+                const capturedVideoUrls: string[] = [];
+                const responseHandler = (response: any) => {
+                    const url = response.url();
+                    if (url.includes('.mp4') || (url.includes('video') && url.includes('fbcdn'))) {
+                        capturedVideoUrls.push(url);
+                    }
+                };
+                page.on('response', responseHandler);
+
                 await page.goto(highlightUrl, { waitUntil: 'networkidle2', timeout: 30000 });
                 await delay(3000);
 
@@ -613,7 +624,7 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
 
                 while (attempts < maxAttempts) {
                     // Wait for story content to load
-                    await delay(800);
+                    await delay(1500);
 
                     // Extract current story media
                     const item = await page.evaluate(() => {
@@ -621,29 +632,28 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
                             src.includes('s150x150') || src.includes('s64x64') ||
                             src.includes('s32x32') || src.includes('_s150x150');
 
-                        // Check for video first (stories can be video)
-                        const videoSources = document.querySelectorAll('video source[src], video[src]');
-                        for (const vid of Array.from(videoSources)) {
-                            const src = vid.getAttribute('src') || (vid as HTMLVideoElement).src;
-                            if (src && src.startsWith('http')) {
-                                return { mediaUrl: src, mediaType: 'video' as const };
+                        // Check for video first - detect presence of video element (even with blob: src)
+                        const videos = document.querySelectorAll('video');
+                        for (const vid of Array.from(videos)) {
+                            const src = vid.src || vid.querySelector('source')?.src || '';
+                            if (src) {
+                                // Return blob URL as marker - we'll replace with captured network URL
+                                return { mediaUrl: src.startsWith('blob:') ? 'VIDEO_BLOB_DETECTED' : src, mediaType: 'video' as const };
                             }
                         }
 
                         // Story images use img[draggable="false"] with large dimensions
-                        // Also check img[decoding="sync"], img[style*="object-fit"], img[sizes]
                         const imgs = document.querySelectorAll('img[draggable="false"], img[decoding="sync"], img[style*="object-fit"], img[sizes]');
                         for (const img of Array.from(imgs)) {
                             const src = (img as HTMLImageElement).src;
                             if (!src || isSmallThumbnail(src)) continue;
                             const rect = (img as HTMLElement).getBoundingClientRect();
-                            // Story images are large (typically > 200px in both dimensions)
                             if (rect.width > 200 && rect.height > 200) {
                                 return { mediaUrl: src, mediaType: 'image' as const };
                             }
                         }
 
-                        // Broader fallback: any large image in the page
+                        // Broader fallback: any large image
                         const allImgs = document.querySelectorAll('img');
                         for (const img of Array.from(allImgs)) {
                             const src = (img as HTMLImageElement).src;
@@ -657,12 +667,29 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
                         return null;
                     });
 
-                    if (item && !items.some(i => i.mediaUrl === item.mediaUrl)) {
-                        items.push(item);
-                        consecutiveEmpty = 0;
+                    if (item) {
+                        let resolvedItem = item;
+
+                        // For blob videos, use the captured network URL
+                        if (item.mediaUrl === 'VIDEO_BLOB_DETECTED' && capturedVideoUrls.length > 0) {
+                            // Use the most recently captured video URL
+                            resolvedItem = { mediaUrl: capturedVideoUrls[capturedVideoUrls.length - 1], mediaType: 'video' };
+                        } else if (item.mediaUrl === 'VIDEO_BLOB_DETECTED') {
+                            // No network URL captured yet, skip but don't count as empty
+                            attempts++;
+                            continue;
+                        }
+
+                        if (!items.some(i => i.mediaUrl === resolvedItem.mediaUrl)) {
+                            items.push(resolvedItem);
+                            consecutiveEmpty = 0;
+                        } else {
+                            consecutiveEmpty++;
+                            if (consecutiveEmpty >= 3) break;
+                        }
                     } else {
                         consecutiveEmpty++;
-                        if (consecutiveEmpty >= 3) break; // No new content 3 times in a row
+                        if (consecutiveEmpty >= 3) break;
                     }
 
                     // Click "Next" to advance to next story in this highlight
@@ -706,13 +733,16 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
 
                     if (navigated === 'end') break;
 
-                    await delay(1200);
+                    await delay(1500);
                     attempts++;
 
                     // Check if we're still in a story viewer (didn't navigate away)
                     const currentUrl = page.url();
                     if (!currentUrl.includes('/stories/')) break;
                 }
+
+                // Clean up network listener
+                page.off('response', responseHandler);
 
                 highlights.push({
                     title: hl.title,
