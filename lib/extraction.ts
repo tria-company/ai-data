@@ -576,8 +576,8 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
                     ? hl.href
                     : `https://www.instagram.com${hl.href}`;
 
-                await page.goto(highlightUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-                await delay(2500);
+                await page.goto(highlightUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+                await delay(3000);
 
                 const items: Array<{ mediaUrl: string; mediaType: 'image' | 'video' }> = [];
                 let attempts = 0;
@@ -590,6 +590,10 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
 
                     // Extract current story media
                     const item = await page.evaluate(() => {
+                        const isSmallThumbnail = (src: string) =>
+                            src.includes('s150x150') || src.includes('s64x64') ||
+                            src.includes('s32x32') || src.includes('_s150x150');
+
                         // Check for video first (stories can be video)
                         const videoSources = document.querySelectorAll('video source[src], video[src]');
                         for (const vid of Array.from(videoSources)) {
@@ -599,19 +603,15 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
                             }
                         }
 
-                        // Check for image - story images are large, not profile pics
-                        // They typically have style="object-fit: cover" or are inside the story container
-                        const imgs = document.querySelectorAll('img[decoding="sync"], img[style*="object-fit"], img[sizes]');
+                        // Story images use img[draggable="false"] with large dimensions
+                        // Also check img[decoding="sync"], img[style*="object-fit"], img[sizes]
+                        const imgs = document.querySelectorAll('img[draggable="false"], img[decoding="sync"], img[style*="object-fit"], img[sizes]');
                         for (const img of Array.from(imgs)) {
                             const src = (img as HTMLImageElement).src;
-                            const width = (img as HTMLImageElement).width || (img as HTMLImageElement).naturalWidth;
-                            // Skip small images (profile pics, thumbnails)
-                            if (src && width > 100 &&
-                                !src.includes('s150x150') &&
-                                !src.includes('s64x64') &&
-                                !src.includes('s32x32') &&
-                                !src.includes('_s150x150') &&
-                                !src.includes('profile')) {
+                            if (!src || isSmallThumbnail(src)) continue;
+                            const rect = (img as HTMLElement).getBoundingClientRect();
+                            // Story images are large (typically > 200px in both dimensions)
+                            if (rect.width > 200 && rect.height > 200) {
                                 return { mediaUrl: src, mediaType: 'image' as const };
                             }
                         }
@@ -620,11 +620,9 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
                         const allImgs = document.querySelectorAll('img');
                         for (const img of Array.from(allImgs)) {
                             const src = (img as HTMLImageElement).src;
+                            if (!src || isSmallThumbnail(src)) continue;
                             const rect = (img as HTMLElement).getBoundingClientRect();
-                            // Story images are usually large and centered
-                            if (src && rect.width > 200 && rect.height > 200 &&
-                                !src.includes('s150x150') &&
-                                !src.includes('s64x64')) {
+                            if (rect.width > 200 && rect.height > 200) {
                                 return { mediaUrl: src, mediaType: 'image' as const };
                             }
                         }
@@ -642,18 +640,30 @@ export async function extractHighlights(page: Page, username: string, onLog?: (m
 
                     // Click "Next" to advance to next story in this highlight
                     const navigated = await page.evaluate(() => {
-                        // Strategy 1: Button with Next/Avançar/Próximo aria-label
                         const nextLabels = ['Next', 'Avançar', 'Próximo', 'Siguiente'];
+
+                        // Strategy 1: button or div[role="button"] with aria-label
                         for (const label of nextLabels) {
-                            const btn = document.querySelector(`button[aria-label="${label}"]`);
+                            const btn = document.querySelector(`button[aria-label="${label}"], div[role="button"][aria-label="${label}"]`);
                             if (btn) {
                                 (btn as HTMLElement).click();
                                 return 'next';
                             }
                         }
 
-                        // Strategy 2: The right-side clickable area in story viewer
-                        // Stories have a left/right division for prev/next
+                        // Strategy 2: div[role="button"] containing svg with aria-label (Instagram's actual structure)
+                        for (const label of nextLabels) {
+                            const svg = document.querySelector(`svg[aria-label="${label}"]`);
+                            if (svg) {
+                                const btn = svg.closest('div[role="button"]') || svg.parentElement;
+                                if (btn) {
+                                    (btn as HTMLElement).click();
+                                    return 'next';
+                                }
+                            }
+                        }
+
+                        // Strategy 3: The right-side clickable area in story viewer
                         const buttons = document.querySelectorAll('div[role="button"]');
                         const rightButtons = Array.from(buttons).filter(b => {
                             const rect = b.getBoundingClientRect();
