@@ -41,7 +41,11 @@ export async function performLogin(accountId: string) {
 }
 
 // Scrape Function
-export async function scrapeAccounts(targetUsernames: string[], accountId: string, projetoId: string | null = null): Promise<ScrapeResult[]> {
+export async function scrapeAccounts(targetUsernames: string[], accountId: string, projetoId: string | null = null, onLog?: (msg: string) => void): Promise<ScrapeResult[]> {
+    const log = (msg: string) => { console.log(msg); if (onLog) onLog(msg); };
+    const logWarn = (msg: string) => { console.warn(msg); if (onLog) onLog(msg); };
+    const logError = (msg: string) => { console.error(msg); if (onLog) onLog(msg); };
+
     // Get credentials/cookies
     const { data: account } = await supabase.from('scrapper_accounts').select('*').eq('id', accountId).single();
     if (!account || !account.session_cookies) throw new Error("Account not ready (no cookies)");
@@ -90,6 +94,8 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
         await page.setCookie(...sanitized);
     }
 
+    log('Cookies loaded, browser ready');
+
     const results: ScrapeResult[] = [];
 
     for (const username of targetUsernames) {
@@ -99,6 +105,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
 
             // Sanitize username (remove @)
             const cleanUsername = username.replace('@', '').trim();
+            log(`Starting scrape for @${cleanUsername}...`);
             const targetUrl = INSTAGRAM_URL + cleanUsername;
 
             await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -106,7 +113,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
             await delay(Math.random() * 2000 + 1000);
 
             // Check private
-            const isPrivate = await checkIfPrivate(page);
+            const isPrivate = await checkIfPrivate(page, onLog);
             if (isPrivate) {
                 await supabase.from('users_scrapping').update({ status: 'failed' }).eq('user', username);
                 results.push({ username, status: 'failed', error: 'Private account' });
@@ -116,9 +123,9 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
             // Extract BIO before scrolling (it's visible at the top of the profile)
             let bio = '';
             try {
-                bio = await extractBio(page);
+                bio = await extractBio(page, onLog);
                 if (bio) {
-                    console.log(`📝 Bio for ${username}: "${bio.substring(0, 80)}${bio.length > 80 ? '...' : ''}"`);
+                    log(`Bio for ${username}: "${bio.substring(0, 80)}${bio.length > 80 ? '...' : ''}"`);
                     await supabase
                         .from('profile_bio')
                         .upsert({ username: cleanUsername, bio, updated_at: new Date().toISOString(), ...(projetoId ? { projeto: projetoId } : {}) }, {
@@ -126,15 +133,15 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                         });
                 }
             } catch (e: any) {
-                console.warn(`[bio] Failed for ${username}: ${e.message}`);
+                logWarn(`[bio] Failed for ${username}: ${e.message}`);
             }
 
             // Extract Highlights before scrolling (they're below the bio)
             let highlightsData: any[] = [];
             try {
-                highlightsData = await extractHighlights(page, cleanUsername);
+                highlightsData = await extractHighlights(page, cleanUsername, onLog);
                 if (highlightsData.length > 0) {
-                    console.log(`⭐ Found ${highlightsData.length} highlights for ${username}`);
+                    log(`Found ${highlightsData.length} highlights for ${username}`);
 
                     for (const hl of highlightsData) {
                         // Upsert the highlight
@@ -152,7 +159,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                             .single();
 
                         if (hlError || !hlRow) {
-                            console.error(`Error saving highlight "${hl.title}":`, hlError);
+                            logError(`Error saving highlight "${hl.title}": ${hlError}`);
                             continue;
                         }
 
@@ -173,19 +180,19 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                                 });
 
                             if (itemsError) {
-                                console.error(`Error saving highlight items for "${hl.title}":`, itemsError);
+                                logError(`Error saving highlight items for "${hl.title}": ${itemsError}`);
                             }
                         }
                     }
                 }
             } catch (e: any) {
-                console.warn(`[highlights] Failed for ${username}: ${e.message}`);
+                logWarn(`[highlights] Failed for ${username}: ${e.message}`);
                 // Navigate back to profile in case highlights extraction left us elsewhere
                 await page.goto(`https://www.instagram.com/${cleanUsername}/`, { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
                 await delay(1500);
             }
 
-            await scrollToBottom(page, username);
+            await scrollToBottom(page, username, 50, onLog);
             const posts = await extractPostsData(page, username);
 
             // Process Reels (extract video URLs)
@@ -225,12 +232,13 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
             const postsWithLikes = new Set((existingLikes || []).map(r => r.postid));
             const postsWithComments = new Set((existingComments || []).map(r => r.postid));
 
+            log(`Extracting engagement data for @${username}...`);
             for (const post of postsForEngagement) {
                 const hasLikes = postsWithLikes.has(post.postId);
                 const hasComments = postsWithComments.has(post.postId);
 
                 if (hasLikes && hasComments) {
-                    console.log(`[skip] Post ${post.postId} already has likes & comments in DB`);
+                    log(`[skip] Post ${post.postId} already has likes & comments in DB`);
                     post.likes = [];
                     post.comments = [];
                     continue;
@@ -238,11 +246,11 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
 
                 if (!hasLikes) {
                     try {
-                        const likes = await extractPostLikes(page, post.postUrl);
+                        const likes = await extractPostLikes(page, post.postUrl, onLog);
                         post.likes = likes;
                         totalLikes += likes.length;
                     } catch (e: any) {
-                        console.warn(`[likes] Failed for ${post.postUrl}: ${e.message}`);
+                        logWarn(`[likes] Failed for ${post.postUrl}: ${e.message}`);
                         post.likes = [];
                     }
                 } else {
@@ -251,11 +259,11 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
 
                 if (!hasComments) {
                     try {
-                        const comments = await extractPostComments(page, post.postUrl);
+                        const comments = await extractPostComments(page, post.postUrl, onLog);
                         post.comments = comments;
                         totalComments += comments.length;
                     } catch (e: any) {
-                        console.warn(`[comments] Failed for ${post.postUrl}: ${e.message}`);
+                        logWarn(`[comments] Failed for ${post.postUrl}: ${e.message}`);
                         post.comments = [];
                     }
                 } else {
@@ -266,7 +274,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                 await delay(Math.random() * 1000 + 500);
             }
 
-            console.log(`Extracted ${totalLikes} likes and ${totalComments} comments for ${username} (skipped ${postsWithLikes.size} with existing likes, ${postsWithComments.size} with existing comments)`);
+            log(`Extracted ${totalLikes} likes and ${totalComments} comments for ${username} (skipped ${postsWithLikes.size} with existing likes, ${postsWithComments.size} with existing comments)`);
 
             // Save to DB (Prevent duplicates)
             const postsPayload = posts.map(post => ({
@@ -285,7 +293,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
             }));
 
             if (postsPayload.length > 0) {
-                console.log(`💾 Saving ${postsPayload.length} posts to database for ${username}...`);
+                log(`Saving ${postsPayload.length} posts to database for ${username}...`);
                 const { error: insertError, count } = await supabase
                     .from('scrappers_contents')
                     .upsert(postsPayload, {
@@ -298,23 +306,23 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                 if (insertError) {
                     // Check for 42P10 specifically
                     if (insertError.code === '42P10') {
-                        console.error(`❌ CONSTRAINT MISSING: Please run SQL: ALTER TABLE scrappers_contents ADD CONSTRAINT scrappers_contents_postid_key UNIQUE (postid);`);
+                        logError(`CONSTRAINT MISSING: Please run SQL: ALTER TABLE scrappers_contents ADD CONSTRAINT scrappers_contents_postid_key UNIQUE (postid);`);
                     }
-                    console.error(`❌ Error saving posts for ${username}:`, insertError);
+                    logError(`Error saving posts for ${username}: ${insertError}`);
                     results.push({ username, status: 'failed', error: `DB Error: ${insertError.message}` });
                 } else {
-                    console.log(`✅ Saved/Ignored ${postsPayload.length} posts for ${username}. (DB count: ${count})`);
+                    log(`Saved/Ignored ${postsPayload.length} posts for ${username}. (DB count: ${count})`);
                     results.push({ username, status: 'success', postsFound: postsPayload.length });
                 }
             } else {
                 const pageTitle = await page.title();
-                console.log(`⚠️ No posts found for ${username}. Page Title: "${pageTitle}"`);
+                log(`No posts found for ${username}. Page Title: "${pageTitle}"`);
                 const timestamp = new Date().getTime();
                 const screenshotPath = path.join(os.tmpdir(), `debug-noposts-${username}-${timestamp}.png`);
                 try {
                     await page.screenshot({ path: screenshotPath });
-                    console.log(`📸 Debug Screenshot saved: ${screenshotPath}`);
-                } catch (e) { console.error('Screenshot failed', e); }
+                    log(`Debug Screenshot saved: ${screenshotPath}`);
+                } catch (e) { logError(`Screenshot failed: ${e}`); }
 
                 results.push({ username, status: 'success', postsFound: 0 }); // Success but 0
             }
@@ -338,9 +346,9 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                     });
 
                 if (likesError) {
-                    console.error(`Error saving likes for ${username}:`, likesError);
+                    logError(`Error saving likes for ${username}: ${likesError}`);
                 } else {
-                    console.log(`Saved ${likesPayload.length} likes for ${username}`);
+                    log(`Saved ${likesPayload.length} likes for ${username}`);
                 }
             }
 
@@ -369,9 +377,9 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
                     });
 
                 if (commentsError) {
-                    console.error(`Error saving comments for ${username}:`, commentsError);
+                    logError(`Error saving comments for ${username}: ${commentsError}`);
                 } else {
-                    console.log(`Saved ${commentsPayload.length} comments for ${username}`);
+                    log(`Saved ${commentsPayload.length} comments for ${username}`);
                 }
             }
 
@@ -383,7 +391,7 @@ export async function scrapeAccounts(targetUsernames: string[], accountId: strin
             results.push({ username, status: 'success', data: { posts: posts.length, likes: totalLikes, comments: totalComments, bio: bio ? true : false, highlights: highlightsData.length } });
 
         } catch (e: any) {
-            console.error(`Error scraping ${username}: ${e.message}`);
+            logError(`Error scraping ${username}: ${e.message}`);
             await supabase.from('users_scrapping').update({ status: 'failed' }).eq('user', username);
             results.push({ username, status: 'failed', error: e.message });
         }

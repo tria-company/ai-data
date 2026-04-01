@@ -4,7 +4,7 @@ import { Page } from 'puppeteer-core';
 // Helper for delays
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function checkIfPrivate(page: Page): Promise<boolean> {
+export async function checkIfPrivate(page: Page, onLog?: (msg: string) => void): Promise<boolean> {
     try {
         await delay(1500);
 
@@ -33,6 +33,7 @@ export async function checkIfPrivate(page: Page): Promise<boolean> {
         return result.isPrivate;
     } catch (err) {
         console.error("Error checking privacy:", err);
+        if (onLog) onLog(`Error checking privacy: ${err}`);
         return false;
     }
 }
@@ -196,7 +197,7 @@ export async function extractCarouselImages(page: Page, postUrl: string): Promis
     }
 }
 
-export async function extractPostLikes(page: Page, postUrl: string): Promise<string[]> {
+export async function extractPostLikes(page: Page, postUrl: string, onLog?: (msg: string) => void): Promise<string[]> {
     const newPage = await page.browser().newPage();
     try {
         await newPage.goto(postUrl, { waitUntil: "networkidle2", timeout: 30000 });
@@ -236,6 +237,7 @@ export async function extractPostLikes(page: Page, postUrl: string): Promise<str
 
         if (!likesClicked) {
             console.warn(`[extractPostLikes] Could not find likes button for ${postUrl}`);
+            if (onLog) onLog(`[extractPostLikes] Could not find likes button for ${postUrl}`);
             await newPage.close();
             return [];
         }
@@ -308,18 +310,20 @@ export async function extractPostLikes(page: Page, postUrl: string): Promise<str
 
         if (usernames.length === 0) {
             console.warn(`[extractPostLikes] 0 likes extracted for ${postUrl}`);
+            if (onLog) onLog(`[extractPostLikes] 0 likes extracted for ${postUrl}`);
         }
 
         await newPage.close();
         return usernames;
     } catch (e) {
         console.warn(`[extractPostLikes] Error for ${postUrl}:`, e);
+        if (onLog) onLog(`[extractPostLikes] Error for ${postUrl}: ${e}`);
         await newPage.close();
         return [];
     }
 }
 
-export async function extractPostComments(page: Page, postUrl: string): Promise<Array<{username: string, text: string}>> {
+export async function extractPostComments(page: Page, postUrl: string, onLog?: (msg: string) => void): Promise<Array<{username: string, text: string}>> {
     const newPage = await page.browser().newPage();
     try {
         await newPage.goto(postUrl, { waitUntil: "networkidle2", timeout: 30000 });
@@ -443,18 +447,20 @@ export async function extractPostComments(page: Page, postUrl: string): Promise<
 
         if (comments.length === 0) {
             console.warn(`[extractPostComments] 0 comments extracted for ${postUrl}`);
+            if (onLog) onLog(`[extractPostComments] 0 comments extracted for ${postUrl}`);
         }
 
         await newPage.close();
         return comments;
     } catch (e) {
         console.warn(`[extractPostComments] Error for ${postUrl}:`, e);
+        if (onLog) onLog(`[extractPostComments] Error for ${postUrl}: ${e}`);
         await newPage.close();
         return [];
     }
 }
 
-export async function extractBio(page: Page): Promise<string> {
+export async function extractBio(page: Page, onLog?: (msg: string) => void): Promise<string> {
     try {
         const bio = await page.evaluate(() => {
             // Instagram bio is in a span inside the header section, typically with class -vDIg or similar
@@ -486,6 +492,7 @@ export async function extractBio(page: Page): Promise<string> {
         return bio;
     } catch (e) {
         console.warn('[extractBio] Error:', e);
+        if (onLog) onLog(`[extractBio] Error: ${e}`);
         return '';
     }
 }
@@ -499,7 +506,7 @@ export interface HighlightData {
     }>;
 }
 
-export async function extractHighlights(page: Page, username: string): Promise<HighlightData[]> {
+export async function extractHighlights(page: Page, username: string, onLog?: (msg: string) => void): Promise<HighlightData[]> {
     const highlights: HighlightData[] = [];
 
     try {
@@ -554,10 +561,12 @@ export async function extractHighlights(page: Page, username: string): Promise<H
 
         if (highlightItems.length === 0) {
             console.log(`[extractHighlights] No highlights found for ${username}`);
+            if (onLog) onLog(`[extractHighlights] No highlights found for ${username}`);
             return [];
         }
 
         console.log(`[extractHighlights] Found ${highlightItems.length} highlights for ${username}`);
+        if (onLog) onLog(`[extractHighlights] Found ${highlightItems.length} highlights for ${username}`);
 
         // Navigate to each highlight and extract all stories
         for (const hl of highlightItems) {
@@ -675,9 +684,11 @@ export async function extractHighlights(page: Page, username: string): Promise<H
                 });
 
                 console.log(`[extractHighlights] "${hl.title}": ${items.length} items extracted`);
+                if (onLog) onLog(`[extractHighlights] "${hl.title}": ${items.length} items extracted`);
 
             } catch (e) {
                 console.warn(`[extractHighlights] Error extracting highlight "${hl.title}":`, e);
+                if (onLog) onLog(`[extractHighlights] Error extracting highlight "${hl.title}": ${e}`);
             }
 
             // Always go back to profile before next highlight
@@ -687,6 +698,7 @@ export async function extractHighlights(page: Page, username: string): Promise<H
 
     } catch (e) {
         console.warn(`[extractHighlights] Error for ${username}:`, e);
+        if (onLog) onLog(`[extractHighlights] Error for ${username}: ${e}`);
     }
 
     return highlights;
