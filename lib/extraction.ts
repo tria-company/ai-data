@@ -463,26 +463,53 @@ export async function extractPostComments(page: Page, postUrl: string, onLog?: (
 export async function extractBio(page: Page, onLog?: (msg: string) => void): Promise<string> {
     try {
         const bio = await page.evaluate(() => {
-            // Instagram bio is in a span inside the header section, typically with class -vDIg or similar
-            // Strategy 1: The bio section usually has a specific span with dir="auto" inside the header area
-            const headerSection = document.querySelector('header section') || document.querySelector('header');
-            if (!headerSection) return '';
+            const skipPatterns = [
+                /^(posts?|followers?|following|publicações|seguidores|seguindo)$/i,
+                /^\d[\d,.mkMK\s]*\s*(posts?|followers?|following|publicações|seguidores|seguindo)$/i,
+                /^(seguido|followed)/i,
+            ];
+            const isSkippable = (text: string) =>
+                text.length < 5 ||
+                /^\d[\d,.mkMK]*$/.test(text) ||
+                skipPatterns.some(p => p.test(text));
 
-            // The bio text is in a span within a div that's NOT the username, name, or stats
-            // Look for spans with dir="auto" that contain the bio text
-            const bioSpans = headerSection.querySelectorAll('span[dir="auto"]');
+            // Strategy 1: Bio span with Instagram's _ap3a class pattern (most reliable)
+            // The bio section is in a separate <section> below the header, using span._ap3a._aaco
+            const bioSpans = document.querySelectorAll('span._ap3a._aaco._aacu._aacx._aad7._aade[dir="auto"]');
             for (const span of Array.from(bioSpans)) {
                 const text = (span.textContent || '').trim();
-                // Skip empty, very short, or numeric-only (follower counts)
-                if (text.length < 2 || /^\d[\d,.mkMK]*$/.test(text)) continue;
-                // Skip username/name which are usually in h1/h2 or specific class
-                if (span.closest('h1') || span.closest('h2')) continue;
-                // Skip follower/following/posts count labels
-                if (/^(posts?|followers?|following|publicações|seguidores|seguindo)$/i.test(text)) continue;
-                return text;
+                if (text.length >= 5 && !isSkippable(text)) {
+                    return text;
+                }
             }
 
-            // Strategy 2: Look for the bio in a div.-vDIg span (older layout)
+            // Strategy 2: Look in all <section> elements for bio-like content
+            // The bio is typically in the second section after the profile pic section
+            const sections = document.querySelectorAll('section');
+            for (const section of Array.from(sections)) {
+                const spans = section.querySelectorAll('span[dir="auto"]');
+                for (const span of Array.from(spans)) {
+                    const text = (span.textContent || '').trim();
+                    if (isSkippable(text)) continue;
+                    if (span.closest('h1') || span.closest('h2')) continue;
+                    // Bio text is typically longer than username/name and descriptive
+                    if (text.length >= 20) return text;
+                }
+            }
+
+            // Strategy 3: Look inside header (older layouts)
+            const headerSection = document.querySelector('header section') || document.querySelector('header');
+            if (headerSection) {
+                const spans = headerSection.querySelectorAll('span[dir="auto"]');
+                for (const span of Array.from(spans)) {
+                    const text = (span.textContent || '').trim();
+                    if (isSkippable(text)) continue;
+                    if (span.closest('h1') || span.closest('h2')) continue;
+                    return text;
+                }
+            }
+
+            // Strategy 4: Legacy layout
             const legacyBio = document.querySelector('div.-vDIg span');
             if (legacyBio) return (legacyBio.textContent || '').trim();
 
