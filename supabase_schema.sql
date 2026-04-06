@@ -10,6 +10,8 @@ create table if not exists public.scrapper_accounts (
   session_cookies jsonb null,
   created_at timestamp with time zone not null default now(),
   updated_at timestamp with time zone null,
+  cookie_valid boolean null,
+  failed_attempts smallint null default '0'::smallint,
   constraint scrapper_accounts_pkey primary key (id),
   constraint scrapper_accounts_username_key unique (username)
 );

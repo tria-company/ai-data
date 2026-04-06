@@ -1,17 +1,18 @@
 <!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
-**Instagram Scraper Pro — Multi-Projeto**
+**Instagram Scraper Pro**
 
-Dashboard de scraping de Instagram que permite gerenciar múltiplos projetos/clientes. Cada projeto tem seus próprios alvos (targets) e dados de scraping isolados. Construído com Next.js, Puppeteer, e Supabase self-hosted.
+Plataforma de scraping de Instagram com gerenciamento de múltiplos projetos/clientes. Cada projeto tem alvos isolados. Sistema assíncrono com filas de processamento, workers dedicados, e infraestrutura Docker auto-hospedada. Construído com Next.js, Puppeteer, BullMQ, Redis, e Supabase self-hosted.
 
-**Core Value:** Usuário pode selecionar um projeto e ver/executar scraping apenas dos alvos vinculados àquele projeto, mantendo dados isolados entre clientes.
+**Core Value:** Scraping confiável e escalável via API assíncrona — requisições são enfileiradas e processadas por workers dedicados, com seleção automática de conta e notificação quando intervenção humana é necessária.
 
 ### Constraints
 
-- **Tech stack**: Manter Next.js + Supabase existente
-- **Backward compatibility**: O campo `projeto` é nullable, dados sem projeto devem continuar acessíveis
-- **UX**: Seleção de projeto deve ser o primeiro passo, antes de selecionar agente e alvos
+- **Tech stack**: Manter Next.js + Supabase existente, adicionar BullMQ + Redis + Browserless
+- **Deploy**: Docker Compose em VPS (Hetzner/DigitalOcean, ~$5-15/mês)
+- **Instagram rate limits**: Max ~100 requests/hora por conta, necessário round-robin
+- **Backward compatibility**: Frontend existente deve continuar funcionando durante migração
 <!-- GSD:project-end -->
 
 <!-- GSD:stack-start source:STACK.md -->
