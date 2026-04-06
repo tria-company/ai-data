@@ -58,10 +58,10 @@
 
 ### Login & Cookies
 
-- [ ] **LOGIN-01**: Pagina /admin/login-session exibe browser Browserless embutido apontando para Instagram
-- [ ] **LOGIN-02**: Usuario pode fazer login manualmente no Instagram via browser embutido
-- [ ] **LOGIN-03**: Botao "Capturar Cookies" extrai cookies da sessao, encripta e salva no banco
-- [ ] **LOGIN-04**: Conta marcada como cookie_valid=true e is_active=true apos captura
+- [x] **LOGIN-01**: Pagina /admin/login-session exibe browser Browserless embutido apontando para Instagram
+- [x] **LOGIN-02**: Usuario pode fazer login manualmente no Instagram via browser embutido
+- [x] **LOGIN-03**: Botao "Capturar Cookies" extrai cookies da sessao, encripta e salva no banco
+- [x] **LOGIN-04**: Conta marcada como cookie_valid=true e is_active=true apos captura
 
 ## Future Requirements
 
@@ -119,10 +119,10 @@
 | API-02 | Phase 6 | Complete |
 | API-03 | Phase 6 | Complete |
 | ACCT-03 | Phase 6 | Complete |
-| LOGIN-01 | Phase 7 | Pending |
-| LOGIN-02 | Phase 7 | Pending |
-| LOGIN-03 | Phase 7 | Pending |
-| LOGIN-04 | Phase 7 | Pending |
+| LOGIN-01 | Phase 7 | Complete |
+| LOGIN-02 | Phase 7 | Complete |
+| LOGIN-03 | Phase 7 | Complete |
+| LOGIN-04 | Phase 7 | Complete |
 
 **Coverage:**
 - v1.0 requirements: 12 total (8 complete, 4 pending)

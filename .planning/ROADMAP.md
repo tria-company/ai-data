@@ -131,7 +131,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 07-01-PLAN.md — Socket.io server, CDP screencast browser session manager, API fixes for cookie_valid
+- [x] 07-01-PLAN.md — Socket.io server, CDP screencast browser session manager, API fixes for cookie_valid
 - [ ] 07-02-PLAN.md — Login session page UI with browser viewer, account dropdown, cookie capture
 
 ## Progress
@@ -147,4 +147,4 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7
 | 4. Infrastructure Foundation | v2.0 | 2/2 | Complete | - |
 | 5. Queue System & Workers | v2.0 | 2/2 | Complete | - |
 | 6. API & Notifications | v2.0 | 0/2 | Planning | - |
-| 7. Login Page & Cookies | v2.0 | 0/2 | Planning | - |
+| 7. Login Page & Cookies | v2.0 | 1/2 | In Progress|  |
