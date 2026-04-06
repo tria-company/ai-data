@@ -100,8 +100,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Browser abstraction, account selector, DB migration, worker Dockerfile
-- [ ] 05-02-PLAN.md — Profile worker, post worker, Docker Compose integration
+- [x] 05-01-PLAN.md — Browser abstraction, account selector, DB migration, worker Dockerfile
+- [x] 05-02-PLAN.md — Profile worker, post worker, Docker Compose integration
 
 ### Phase 6: API & Notifications
 **Goal**: External consumers can trigger scraping via REST API and monitor job progress, with email alerts when no accounts are available

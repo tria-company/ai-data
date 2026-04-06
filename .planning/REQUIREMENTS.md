@@ -37,11 +37,11 @@
 
 ### Queues & Workers
 
-- [ ] **QUEUE-01**: Fila `profile-scrape` processa extracao de bio, highlights e lista de posts por perfil
-- [ ] **QUEUE-02**: Fila `post-details` processa extracao de likes, comments, video e carousel por post
-- [ ] **QUEUE-03**: Worker de profile enfileira posts individuais na fila `post-details` apos extrair lista
-- [ ] **QUEUE-04**: Workers possuem retry automatico com backoff exponencial em caso de falha
-- [ ] **QUEUE-05**: Rate limiting nos workers respeita limites do Instagram (~2 requests/min)
+- [x] **QUEUE-01**: Fila `profile-scrape` processa extracao de bio, highlights e lista de posts por perfil
+- [x] **QUEUE-02**: Fila `post-details` processa extracao de likes, comments, video e carousel por post
+- [x] **QUEUE-03**: Worker de profile enfileira posts individuais na fila `post-details` apos extrair lista
+- [x] **QUEUE-04**: Workers possuem retry automatico com backoff exponencial em caso de falha
+- [x] **QUEUE-05**: Rate limiting nos workers respeita limites do Instagram (~2 requests/min)
 
 ### API
 
@@ -51,10 +51,10 @@
 
 ### Account Management
 
-- [ ] **ACCT-01**: Sistema seleciona automaticamente conta com cookie valido (round-robin por last_used_at)
-- [ ] **ACCT-02**: Se cookie falha durante scraping, marca conta como cookie_valid=false e tenta proxima
+- [x] **ACCT-01**: Sistema seleciona automaticamente conta com cookie valido (round-robin por last_used_at)
+- [x] **ACCT-02**: Se cookie falha durante scraping, marca conta como cookie_valid=false e tenta proxima
 - [ ] **ACCT-03**: Se nenhuma conta disponivel, envia email via Resend com alerta e instrucoes
-- [ ] **ACCT-04**: Job volta para fila com delay de 30min quando sem conta disponivel
+- [x] **ACCT-04**: Job volta para fila com delay de 30min quando sem conta disponivel
 
 ### Login & Cookies
 
@@ -107,14 +107,14 @@
 | INFRA-02 | Phase 4 | Complete |
 | INFRA-03 | Phase 4 | Complete |
 | INFRA-04 | Phase 4 | Complete |
-| QUEUE-01 | Phase 5 | Pending |
-| QUEUE-02 | Phase 5 | Pending |
-| QUEUE-03 | Phase 5 | Pending |
-| QUEUE-04 | Phase 5 | Pending |
-| QUEUE-05 | Phase 5 | Pending |
-| ACCT-01 | Phase 5 | Pending |
-| ACCT-02 | Phase 5 | Pending |
-| ACCT-04 | Phase 5 | Pending |
+| QUEUE-01 | Phase 5 | Complete |
+| QUEUE-02 | Phase 5 | Complete |
+| QUEUE-03 | Phase 5 | Complete |
+| QUEUE-04 | Phase 5 | Complete |
+| QUEUE-05 | Phase 5 | Complete |
+| ACCT-01 | Phase 5 | Complete |
+| ACCT-02 | Phase 5 | Complete |
+| ACCT-04 | Phase 5 | Complete |
 | API-01 | Phase 6 | Pending |
 | API-02 | Phase 6 | Pending |
 | API-03 | Phase 6 | Pending |
