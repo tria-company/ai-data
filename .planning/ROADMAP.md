@@ -81,7 +81,11 @@ Plans:
   2. The Next.js app runs inside a container and serves pages at localhost
   3. Redis is reachable from the app container and accepts BullMQ connections
   4. Bull Board web UI is accessible via browser and shows empty queue dashboards
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Dockerfile, docker-compose.yml, Redis and Browserless containers
+- [ ] 04-02-PLAN.md — BullMQ queues, Bull Board UI at /admin/queues, dev compose override
 
 ### Phase 5: Queue System & Workers
 **Goal**: Scraping jobs are processed asynchronously by dedicated workers with automatic account selection, retry logic, and Instagram rate-limit compliance
@@ -128,7 +132,7 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7
 | 1. Backend Foundation | v1.0 | 2/2 | Complete | - |
 | 2. Project Selector | v1.0 | 1/1 | Complete | - |
 | 3. Integration | v1.0 | 0/1 | Not started | - |
-| 4. Infrastructure Foundation | v2.0 | 0/? | Not started | - |
+| 4. Infrastructure Foundation | v2.0 | 0/2 | Planning | - |
 | 5. Queue System & Workers | v2.0 | 0/? | Not started | - |
 | 6. API & Notifications | v2.0 | 0/? | Not started | - |
 | 7. Login Page & Cookies | v2.0 | 0/? | Not started | - |
