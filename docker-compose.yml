@@ -41,6 +41,38 @@ services:
       - scraper-net
     restart: unless-stopped
 
+  profile-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      browserless:
+        condition: service_started
+    networks:
+      - scraper-net
+    restart: unless-stopped
+    command: ["npx", "tsx", "workers/profile-worker.ts"]
+
+  post-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      browserless:
+        condition: service_started
+    networks:
+      - scraper-net
+    restart: unless-stopped
+    command: ["npx", "tsx", "workers/post-worker.ts"]
+
 networks:
   scraper-net:
     driver: bridge
