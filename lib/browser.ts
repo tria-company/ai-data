@@ -75,3 +75,22 @@ export async function launchBrowser(options: BrowserOptions) {
         dumpio: false,
     });
 }
+
+/**
+ * getBrowser() — Entry point for workers.
+ * Connects to Browserless via WebSocket when BROWSERLESS_WS_ENDPOINT is set,
+ * otherwise falls back to local Chrome launch via launchBrowser().
+ */
+export async function getBrowser(options: BrowserOptions = { headless: true }) {
+  const browserlessEndpoint = process.env.BROWSERLESS_WS_ENDPOINT;
+
+  if (browserlessEndpoint) {
+    // Docker/Worker mode: connect to Browserless via WebSocket
+    return await puppeteer.connect({
+      browserWSEndpoint: browserlessEndpoint,
+    });
+  }
+
+  // Fallback: local Chrome launch for dev / Vercel
+  return await launchBrowser(options);
+}
