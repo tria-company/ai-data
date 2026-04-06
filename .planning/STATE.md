@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: API Queue System
-status: planning
-stopped_at: Phase 4 context gathered
-last_updated: "2026-04-06T18:51:40.938Z"
-last_activity: 2026-04-06 -- Roadmap created for v2.0
+status: executing
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-04-06T19:03:58.194Z"
+last_activity: 2026-04-06
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-06)
 
 **Core value:** Scraping confiavel e escalavel via API assincrona com filas e workers dedicados
-**Current focus:** Phase 4 - Infrastructure Foundation
+**Current focus:** Phase 04 — infrastructure-foundation
 
 ## Current Position
 
-Phase: 4 of 7 (Infrastructure Foundation)
-Plan: --
-Status: Ready to plan
-Last activity: 2026-04-06 -- Roadmap created for v2.0
+Phase: 04 (infrastructure-foundation) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-04-06
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -58,6 +58,8 @@ Progress: [░░░░░░░░░░] 0%
 - Docker Compose for deployment instead of Vercel (workers need persistent process)
 - Resend for email notifications
 - Accounts are shared across projects (global resources)
+- [Phase 04]: Browserless mapped to host port 3333 (internal 3000) to avoid conflict with app
+- [Phase 04]: Redis ephemeral with no volumes per D-04, standalone Next.js output for Docker
 
 ### Pending Todos
 
@@ -69,6 +71,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-06T18:51:40.936Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-infrastructure-foundation/04-CONTEXT.md
+Last session: 2026-04-06T19:03:58.191Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: None

@@ -84,7 +84,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Dockerfile, docker-compose.yml, Redis and Browserless containers
+- [x] 04-01-PLAN.md — Dockerfile, docker-compose.yml, Redis and Browserless containers
 - [ ] 04-02-PLAN.md — BullMQ queues, Bull Board UI at /admin/queues, dev compose override
 
 ### Phase 5: Queue System & Workers
