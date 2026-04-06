@@ -1,16 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: executing
-stopped_at: Completed quick-260401-m18
-last_updated: "2026-04-01T19:00:19.912Z"
-last_activity: 2026-04-01 - Completed quick task 260401-m18: Add real-time streaming logs from server scraper to UI via SSE
+milestone: v2.0
+milestone_name: API Queue System
+status: defining_requirements
+last_updated: "2026-04-06"
+last_activity: 2026-04-06 - Milestone v2.0 started
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -18,75 +17,39 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-31)
+See: .planning/PROJECT.md (updated 2026-04-06)
 
-**Core value:** Isolamento de dados por projeto com selecao simples no frontend
-**Current focus:** Phase 03 — integration
+**Core value:** Scraping confiável e escalável via API assíncrona com filas e workers dedicados
+**Current focus:** Defining requirements for v2.0
 
 ## Current Position
 
-Phase: 03 (integration) — EXECUTING
-Plan: 1 of 1
-Status: Executing Phase 03
-Last activity: 2026-04-01 - Completed quick task 260401-m18: streaming logs SSE
-
-Progress: [░░░░░░░░░░] 0%
-
-## Performance Metrics
-
-**Velocity:**
-
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| - | - | - | - |
-
-**Recent Trend:**
-
-- Last 5 plans: -
-- Trend: -
-
-*Updated after each plan completion*
-| Phase 01 P02 | 1min | 1 tasks | 1 files |
-| Phase 01 P01 | 3min | 2 tasks | 2 files |
-| Phase 02 P01 | 2min | 2 tasks | 2 files |
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-06 — Milestone v2.0 started
 
 ## Accumulated Context
 
+### v1.0 Summary
+
+- Delivered multi-project support (3 phases: backend, selector, integration)
+- Scraper code is modular (scraper.ts, extraction.ts, browser.ts)
+- SSE streaming for real-time logs implemented
+- scrapper_accounts table has cookie_valid and failed_attempts columns
+- Instagram DOM extraction strategies refined through multiple iterations
+
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
+- BullMQ + Redis chosen over RabbitMQ (simpler, TypeScript native)
+- 2 queues (profile + post) instead of 5 (1 queue = 1 browser navigation)
+- Browserless for login instead of manual cookie import
+- Docker Compose for deployment instead of Vercel (workers need persistent process)
+- Resend for email notifications
 
-- Campo `projeto` as nullable text (not FK) -- already in all tables except accounts
-- Accounts shared globally across projects
-- [Phase 01]: Followed existing status filter pattern for projeto query param filter
-- [Phase 01]: Projetos CRUD routes follow exact same pattern as accounts/list for codebase consistency
-- [Phase 02]: Purple theme for ProjectSelector to differentiate from blue AccountSelector
-- [Phase 02]: ProjectSelector placed as full-width card before grid, not inside columns
+### Quick Tasks Completed (v1.0)
 
-### Pending Todos
-
-None yet.
-
-### Blockers/Concerns
-
-None yet.
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260401-m18 | Add real-time streaming logs from server scraper to UI via SSE | 2026-04-01 | 069646e | [260401-m18-add-real-time-streaming-logs-from-server](./quick/260401-m18-add-real-time-streaming-logs-from-server/) |
-| 260401-n7s | Fix extractHighlights story image and next button selectors | 2026-04-01 | 4936dbb | [260401-n7s-fix-extracthighlights-story-image-and-ne](./quick/260401-n7s-fix-extracthighlights-story-image-and-ne/) |
-
-## Session Continuity
-
-Last session: 2026-04-01T19:00:19.909Z
-Stopped at: Completed quick-260401-m18
-Resume file: None
+| # | Description | Date | Commit |
+|---|-------------|------|--------|
+| 260401-m18 | Add real-time streaming logs via SSE | 2026-04-01 | 069646e |
+| 260401-n7s | Fix extractHighlights selectors | 2026-04-01 | 4936dbb |
