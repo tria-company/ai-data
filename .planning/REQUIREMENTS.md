@@ -33,7 +33,7 @@
 - [x] **INFRA-01**: Docker Compose orquestra todos os servicos (app, Redis, Browserless, workers, Bull Board)
 - [x] **INFRA-02**: Dockerfile containeriza a aplicacao Next.js
 - [x] **INFRA-03**: Redis container disponivel como backend para filas BullMQ
-- [ ] **INFRA-04**: Bull Board acessivel via web para monitorar filas e jobs
+- [x] **INFRA-04**: Bull Board acessivel via web para monitorar filas e jobs
 
 ### Queues & Workers
 
@@ -106,7 +106,7 @@
 | INFRA-01 | Phase 4 | Complete |
 | INFRA-02 | Phase 4 | Complete |
 | INFRA-03 | Phase 4 | Complete |
-| INFRA-04 | Phase 4 | Pending |
+| INFRA-04 | Phase 4 | Complete |
 | QUEUE-01 | Phase 5 | Pending |
 | QUEUE-02 | Phase 5 | Pending |
 | QUEUE-03 | Phase 5 | Pending |

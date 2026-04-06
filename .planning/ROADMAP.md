@@ -85,7 +85,7 @@ Plans:
 
 Plans:
 - [x] 04-01-PLAN.md — Dockerfile, docker-compose.yml, Redis and Browserless containers
-- [ ] 04-02-PLAN.md — BullMQ queues, Bull Board UI at /admin/queues, dev compose override
+- [x] 04-02-PLAN.md — BullMQ queues, Bull Board UI at /admin/queues, dev compose override
 
 ### Phase 5: Queue System & Workers
 **Goal**: Scraping jobs are processed asynchronously by dedicated workers with automatic account selection, retry logic, and Instagram rate-limit compliance
