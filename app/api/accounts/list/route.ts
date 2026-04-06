@@ -6,8 +6,7 @@ export async function GET() {
     try {
         const { data, error } = await supabase
             .from('scrapper_accounts')
-            .select('id, username, last_login, is_active')
-            .eq('is_active', true)
+            .select('id, username, last_login, is_active, cookie_valid')
             .order('last_login', { ascending: false });
 
         if (error) throw error;

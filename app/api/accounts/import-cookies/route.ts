@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
         const { error } = await supabase.from('scrapper_accounts').update({
             session_cookies: sessionData,
             last_login: new Date().toISOString(),
-            is_active: true
+            is_active: true,
+            cookie_valid: true,
         }).eq('id', accountId);
 
         if (error) {
