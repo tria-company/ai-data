@@ -33,10 +33,10 @@ Declared values (must be multiples of 4):
 |-------|-------|-------|
 | xs | 4px | Inline icon gaps, tight padding |
 | sm | 8px | Compact element spacing, gap-2 |
-| md | 12px | Inner element padding (p-3) |
-| lg | 16px | Default element spacing, gap-4 |
-| xl | 24px | Section padding (p-6) |
-| 2xl | 32px | Layout gaps (gap-8) |
+| md | 16px | Default element spacing, inner padding, gap-4 |
+| lg | 24px | Section padding (p-6) |
+| xl | 32px | Layout gaps (gap-8) |
+| 2xl | 48px | Major section breaks |
 | 3xl | 64px | Not used this phase |
 
 Exceptions: noVNC viewer container uses a fixed minimum height of 600px to ensure usable browser interaction area.
@@ -48,9 +48,9 @@ Exceptions: noVNC viewer container uses a fixed minimum height of 600px to ensur
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 14px (text-sm) | 400 (normal) | 1.5 |
-| Label | 14px (text-sm) | 500 (font-medium) | 1.5 |
+| Label | 14px (text-sm) | 600 (font-semibold) | 1.5 |
 | Heading | 20px (text-xl) | 600 (font-semibold) | 1.2 |
-| Page title | 30px (text-3xl) | 700 (font-bold) | 1.2 |
+| Page title | 30px (text-3xl) | 600 (font-semibold) | 1.2 |
 
 ---
 
@@ -130,7 +130,7 @@ Small badge showing VNC connection state. Three states:
 - **Disconnected**: gray-500 dot + "Desconectado" text in gray-400
 
 ### 4. CaptureButton
-Primary CTA. Full-width button matching existing button patterns (py-3 px-4 rounded-lg font-bold). States:
+Primary CTA. Full-width button matching existing button patterns (py-3 px-4 rounded-lg font-semibold). States:
 - **Disabled** (no session): bg-gray-800 text-gray-500 cursor-not-allowed
 - **Ready**: bg-blue-600 hover:bg-blue-500 text-white
 - **Loading**: bg-blue-600 text-white with Loader2 spin animation
