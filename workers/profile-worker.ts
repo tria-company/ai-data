@@ -2,6 +2,7 @@ import { Worker, Job } from 'bullmq';
 import { connection, postDetailsQueue, profileScrapeQueue } from '../lib/queue';
 import { getBrowser } from '../lib/browser';
 import { selectAccount, markAccountInvalid, isCookieError } from '../lib/account-selector';
+import { sendNoAccountsAlert } from '../lib/notifications';
 import { decrypt } from '../lib/encryption';
 import { supabase } from '../lib/supabase';
 import {
@@ -28,6 +29,7 @@ async function processProfileJob(job: Job<ProfileJobData>) {
   console.log(`[profile-worker] Processing job ${job.id} for @${cleanUsername}`);
 
   // Account selection loop — try accounts sequentially within the SAME job
+  const triedAccounts: { username: string; reason: string }[] = [];
   let account = await selectAccount();
   while (account) {
     try {
@@ -35,6 +37,7 @@ async function processProfileJob(job: Job<ProfileJobData>) {
       return result;
     } catch (error) {
       if (isCookieError(error)) {
+        triedAccounts.push({ username: account.username, reason: 'Invalid cookies (login redirect)' });
         console.warn(`[profile-worker] Cookie error for account ${account.username}, trying next...`);
         await markAccountInvalid(account.id);
         account = await selectAccount();
@@ -44,7 +47,14 @@ async function processProfileJob(job: Job<ProfileJobData>) {
     }
   }
 
-  // No accounts available — re-queue with 30-minute delay
+  // No accounts available — send email alert, then re-queue with 30-minute delay
+  await sendNoAccountsAlert({
+    jobId: job.id!,
+    username: cleanUsername,
+    triedAccounts,
+    queueName: 'profile-scrape',
+  });
+
   await profileScrapeQueue.add('profile-scrape', job.data, {
     delay: 30 * 60 * 1000, // 30 minutes
   });

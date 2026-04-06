@@ -2,6 +2,7 @@ import { Worker, Job } from 'bullmq';
 import { connection, postDetailsQueue } from '../lib/queue';
 import { getBrowser } from '../lib/browser';
 import { selectAccount, markAccountInvalid, isCookieError } from '../lib/account-selector';
+import { sendNoAccountsAlert } from '../lib/notifications';
 import { decrypt } from '../lib/encryption';
 import { supabase } from '../lib/supabase';
 import {
@@ -29,6 +30,7 @@ async function processPostJob(job: Job<PostJobData>) {
   console.log(`[post-worker] Processing job ${job.id} for post ${postId} (@${username})`);
 
   // Account selection loop — try accounts sequentially within the SAME job
+  const triedAccounts: { username: string; reason: string }[] = [];
   let account = await selectAccount();
   while (account) {
     try {
@@ -36,6 +38,7 @@ async function processPostJob(job: Job<PostJobData>) {
       return result;
     } catch (error) {
       if (isCookieError(error)) {
+        triedAccounts.push({ username: account.username, reason: 'Invalid cookies (login redirect)' });
         console.warn(`[post-worker] Cookie error for account ${account.username}, trying next...`);
         await markAccountInvalid(account.id);
         account = await selectAccount();
@@ -45,7 +48,14 @@ async function processPostJob(job: Job<PostJobData>) {
     }
   }
 
-  // No accounts available — re-queue with 30-minute delay
+  // No accounts available — send email alert, then re-queue with 30-minute delay
+  await sendNoAccountsAlert({
+    jobId: job.id!,
+    username,
+    triedAccounts,
+    queueName: 'post-details',
+  });
+
   await postDetailsQueue.add('post-details', job.data, {
     delay: 30 * 60 * 1000, // 30 minutes
   });
