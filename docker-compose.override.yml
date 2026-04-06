@@ -1,0 +1,20 @@
+# Dev overrides - automatically merged with docker-compose.yml
+# Usage: docker compose up (automatically picks up both files)
+services:
+  app:
+    build:
+      target: builder
+    command: npm run dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "3000:3000"
+      - "9229:9229"
+
+  redis:
+    ports:
+      - "6379:6379"

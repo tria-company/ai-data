@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  serverExternalPackages: ['@sparticuz/chromium'],
+  serverExternalPackages: ['@sparticuz/chromium', 'ioredis', 'bullmq', 'express'],
   outputFileTracingIncludes: {
     '/api/scrape': ['./node_modules/@sparticuz/chromium/bin/**/*'],
     '/api/accounts/validate-session': ['./node_modules/@sparticuz/chromium/bin/**/*'],
