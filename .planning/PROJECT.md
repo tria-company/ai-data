@@ -44,7 +44,7 @@ Scraping confiável e escalável via API assíncrona — requisições são enfi
 - [ ] Seleção automática de conta com fallback
 - [ ] Notificação via Resend quando sem conta disponível
 - [ ] Página de login com Browserless para captura de cookies
-- [ ] Docker Compose para toda infraestrutura
+- ✓ Docker Compose para toda infraestrutura — v2.0 Phase 4
 - [ ] API de polling de status de jobs
 
 ### Out of Scope
@@ -100,4 +100,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-06 after milestone v2.0 initialization*
+*Last updated: 2026-04-06 after Phase 4 completion*
