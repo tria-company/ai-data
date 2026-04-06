@@ -45,9 +45,9 @@
 
 ### API
 
-- [ ] **API-01**: POST /api/scrape aceita request e retorna 202 Accepted com jobId
-- [ ] **API-02**: GET /api/jobs/:id retorna status, progresso e resultado do job
-- [ ] **API-03**: GET /api/jobs lista jobs com filtro por projetoId e status
+- [x] **API-01**: POST /api/scrape aceita request e retorna 202 Accepted com jobId
+- [x] **API-02**: GET /api/jobs/:id retorna status, progresso e resultado do job
+- [x] **API-03**: GET /api/jobs lista jobs com filtro por projetoId e status
 
 ### Account Management
 
@@ -115,9 +115,9 @@
 | ACCT-01 | Phase 5 | Complete |
 | ACCT-02 | Phase 5 | Complete |
 | ACCT-04 | Phase 5 | Complete |
-| API-01 | Phase 6 | Pending |
-| API-02 | Phase 6 | Pending |
-| API-03 | Phase 6 | Pending |
+| API-01 | Phase 6 | Complete |
+| API-02 | Phase 6 | Complete |
+| API-03 | Phase 6 | Complete |
 | ACCT-03 | Phase 6 | Complete |
 | LOGIN-01 | Phase 7 | Pending |
 | LOGIN-02 | Phase 7 | Pending |

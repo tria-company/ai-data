@@ -115,7 +115,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Async 202 scrape endpoint, job status and listing APIs, queue TTL config
+- [x] 06-01-PLAN.md — Async 202 scrape endpoint, job status and listing APIs, queue TTL config
 - [x] 06-02-PLAN.md — Resend email notifications in workers when no accounts available
 
 ### Phase 7: Login Page & Cookies
