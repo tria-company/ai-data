@@ -1,0 +1,46 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      browserless:
+        condition: service_started
+    networks:
+      - scraper-net
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - scraper-net
+    restart: unless-stopped
+
+  browserless:
+    image: ghcr.io/browserless/chromium:latest
+    ports:
+      - "3333:3000"
+    environment:
+      - TIMEOUT=120000
+      - CONCURRENT=2
+      - HEALTH=true
+    networks:
+      - scraper-net
+    restart: unless-stopped
+
+networks:
+  scraper-net:
+    driver: bridge
