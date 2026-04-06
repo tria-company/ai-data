@@ -468,10 +468,11 @@ export async function extractBio(page: Page, onLog?: (msg: string) => void): Pro
                 /^\d[\d,.mkMK\s]*\s*(posts?|followers?|following|publicações|seguidores|seguindo)$/i,
                 /^(seguido|followed)/i,
             ];
-            const isSkippable = (text: string) =>
-                text.length < 5 ||
+            function isSkippable(text: string) {
+                return text.length < 5 ||
                 /^\d[\d,.mkMK]*$/.test(text) ||
                 skipPatterns.some(p => p.test(text));
+            }
 
             // Strategy 1: Bio span with Instagram's _ap3a class pattern (most reliable)
             // The bio section is in a separate <section> below the header, using span._ap3a._aaco
