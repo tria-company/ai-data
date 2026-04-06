@@ -112,7 +112,11 @@ Plans:
   2. GET /api/jobs/:id returns the current status, progress percentage, and result of a specific job
   3. GET /api/jobs returns a filtered list of jobs by projetoId and/or status
   4. When no accounts with valid cookies are available, an email is sent via Resend with alert and instructions
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Async 202 scrape endpoint, job status and listing APIs, queue TTL config
+- [ ] 06-02-PLAN.md — Resend email notifications in workers when no accounts available
 
 ### Phase 7: Login Page & Cookies
 **Goal**: Admin can manually log into Instagram through an embedded browser and capture session cookies to restore scraping capability
@@ -137,6 +141,6 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7
 | 2. Project Selector | v1.0 | 1/1 | Complete | - |
 | 3. Integration | v1.0 | 0/1 | Not started | - |
 | 4. Infrastructure Foundation | v2.0 | 2/2 | Complete | - |
-| 5. Queue System & Workers | v2.0 | 0/2 | Planning | - |
-| 6. API & Notifications | v2.0 | 0/? | Not started | - |
+| 5. Queue System & Workers | v2.0 | 2/2 | Complete | - |
+| 6. API & Notifications | v2.0 | 0/2 | Planning | - |
 | 7. Login Page & Cookies | v2.0 | 0/? | Not started | - |
