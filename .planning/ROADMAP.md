@@ -116,7 +116,7 @@ Plans:
 
 Plans:
 - [ ] 06-01-PLAN.md — Async 202 scrape endpoint, job status and listing APIs, queue TTL config
-- [ ] 06-02-PLAN.md — Resend email notifications in workers when no accounts available
+- [x] 06-02-PLAN.md — Resend email notifications in workers when no accounts available
 
 ### Phase 7: Login Page & Cookies
 **Goal**: Admin can manually log into Instagram through an embedded browser and capture session cookies to restore scraping capability

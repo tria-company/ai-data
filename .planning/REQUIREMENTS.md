@@ -53,7 +53,7 @@
 
 - [x] **ACCT-01**: Sistema seleciona automaticamente conta com cookie valido (round-robin por last_used_at)
 - [x] **ACCT-02**: Se cookie falha durante scraping, marca conta como cookie_valid=false e tenta proxima
-- [ ] **ACCT-03**: Se nenhuma conta disponivel, envia email via Resend com alerta e instrucoes
+- [x] **ACCT-03**: Se nenhuma conta disponivel, envia email via Resend com alerta e instrucoes
 - [x] **ACCT-04**: Job volta para fila com delay de 30min quando sem conta disponivel
 
 ### Login & Cookies
@@ -118,7 +118,7 @@
 | API-01 | Phase 6 | Pending |
 | API-02 | Phase 6 | Pending |
 | API-03 | Phase 6 | Pending |
-| ACCT-03 | Phase 6 | Pending |
+| ACCT-03 | Phase 6 | Complete |
 | LOGIN-01 | Phase 7 | Pending |
 | LOGIN-02 | Phase 7 | Pending |
 | LOGIN-03 | Phase 7 | Pending |

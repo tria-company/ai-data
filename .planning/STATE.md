@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: API Queue System
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-04-06T19:56:48.798Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-04-06T20:33:45.164Z"
 last_activity: 2026-04-06
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
   percent: 0
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-06)
 
 **Core value:** Scraping confiavel e escalavel via API assincrona com filas e workers dedicados
-**Current focus:** Phase 05 — queue-system-workers
+**Current focus:** Phase 06 — api-notifications
 
 ## Current Position
 
-Phase: 6
-Plan: Not started
+Phase: 06 (api-notifications) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
 Last activity: 2026-04-06
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 04]: Redis ephemeral with no volumes per D-04, standalone Next.js output for Docker
 - [Phase 04]: Used @bull-board/express adapter (not next-adapter which doesn't exist) with Express-to-NextResponse bridge
 - [Phase 05]: Workers decompose scrapeAccounts() into per-profile and per-post units with account selection loop
+- [Phase 06]: Email failure logged but never thrown - notifications must not block worker execution
 
 ### Pending Todos
 
@@ -73,6 +74,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-06T19:54:02.788Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-04-06T20:33:45.162Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
