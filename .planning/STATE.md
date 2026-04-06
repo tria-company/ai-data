@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: API Queue System
+milestone: v1.0
+milestone_name: milestone
 status: verifying
-stopped_at: Phase 5 context gathered
-last_updated: "2026-04-06T19:27:14.190Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-04-06T19:48:47.145Z"
 last_activity: 2026-04-06
 progress:
-  total_phases: 4
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_phases: 3
+  completed_phases: 3
+  total_plans: 4
+  completed_plans: 4
   percent: 0
 ---
 
@@ -18,15 +18,15 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-06)
+See: .planning/PROJECT.md (updated 2026-03-31)
 
-**Core value:** Scraping confiavel e escalavel via API assincrona com filas e workers dedicados
-**Current focus:** Phase 04 — infrastructure-foundation
+**Core value:** Isolamento de dados por projeto com selecao simples no frontend
+**Current focus:** Phase 03 — integration
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
+Phase: 03 (integration) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-04-06
 
@@ -36,31 +36,42 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 0 (v2.0)
-- Average duration: --
-- Total execution time: --
+- Total plans completed: 0
+- Average duration: -
+- Total execution time: 0 hours
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
+**Recent Trend:**
+
+- Last 5 plans: -
+- Trend: -
+
+*Updated after each plan completion*
+| Phase 01 P02 | 1min | 1 tasks | 1 files |
+| Phase 01 P01 | 3min | 2 tasks | 2 files |
+| Phase 02 P01 | 2min | 2 tasks | 2 files |
+| Phase 05 P01 | 2min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
-### v1.0 Summary
-
-- Delivered multi-project support (3 phases: backend, selector, integration)
-- Scraper code is modular (scraper.ts, extraction.ts, browser.ts)
-- SSE streaming for real-time logs implemented
-- scrapper_accounts table has cookie_valid and failed_attempts columns
-- Instagram DOM extraction strategies refined through multiple iterations
-
 ### Decisions
 
-- BullMQ + Redis chosen over RabbitMQ (simpler, TypeScript native)
-- 2 queues (profile + post) instead of 5 (1 queue = 1 browser navigation)
-- Browserless for login instead of manual cookie import
-- Docker Compose for deployment instead of Vercel (workers need persistent process)
-- Resend for email notifications
-- Accounts are shared across projects (global resources)
-- [Phase 04]: Browserless mapped to host port 3333 (internal 3000) to avoid conflict with app
-- [Phase 04]: Redis ephemeral with no volumes per D-04, standalone Next.js output for Docker
-- [Phase 04]: Used @bull-board/express adapter (not next-adapter which doesn't exist) with Express-to-NextResponse bridge
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- Campo `projeto` as nullable text (not FK) -- already in all tables except accounts
+- Accounts shared globally across projects
+- [Phase 01]: Followed existing status filter pattern for projeto query param filter
+- [Phase 01]: Projetos CRUD routes follow exact same pattern as accounts/list for codebase consistency
+- [Phase 02]: Purple theme for ProjectSelector to differentiate from blue AccountSelector
+- [Phase 02]: ProjectSelector placed as full-width card before grid, not inside columns
+- [Phase 05]: getBrowser() added alongside launchBrowser() for backward compatibility
+- [Phase 05]: Relative imports in worker code for tsx compatibility (no @/* aliases)
 
 ### Pending Todos
 
@@ -70,8 +81,15 @@ None yet.
 
 None yet.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260401-m18 | Add real-time streaming logs from server scraper to UI via SSE | 2026-04-01 | 069646e | [260401-m18-add-real-time-streaming-logs-from-server](./quick/260401-m18-add-real-time-streaming-logs-from-server/) |
+| 260401-n7s | Fix extractHighlights story image and next button selectors | 2026-04-01 | 4936dbb | [260401-n7s-fix-extracthighlights-story-image-and-ne](./quick/260401-n7s-fix-extracthighlights-story-image-and-ne/) |
+
 ## Session Continuity
 
-Last session: 2026-04-06T19:27:14.182Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-queue-system-workers/05-CONTEXT.md
+Last session: 2026-04-06T19:48:47.143Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None

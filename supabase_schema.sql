@@ -131,3 +131,16 @@ create trigger update_scrapper_accounts_updated_at
     before update on public.scrapper_accounts
     for each row
     execute procedure update_updated_at_column();
+
+-- ============================================================
+-- MIGRATION: Account selection support for workers (Phase 5)
+-- ============================================================
+
+-- Add last_used_at for round-robin account selection
+ALTER TABLE public.scrapper_accounts
+  ADD COLUMN IF NOT EXISTS last_used_at timestamp with time zone NULL;
+
+-- Partial index for efficient round-robin queries (only active+valid accounts)
+CREATE INDEX IF NOT EXISTS idx_scrapper_accounts_round_robin
+  ON public.scrapper_accounts (last_used_at ASC NULLS FIRST)
+  WHERE cookie_valid = true AND is_active = true;

@@ -9,13 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@bull-board/api": "^6.20.6",
-    "@bull-board/express": "^6.20.6",
     "@sparticuz/chromium": "^143.0.4",
     "@supabase/supabase-js": "^2.91.0",
-    "bullmq": "^5.73.0",
     "dotenv": "^17.2.3",
-    "express": "^5.2.1",
     "ioredis": "^5.10.1",
     "lucide-react": "^0.562.0",
     "next": "16.1.4",
@@ -25,13 +21,13 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.2",
-    "@types/express": "^5.0.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
     "tailwindcss": "^4.2.2",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
