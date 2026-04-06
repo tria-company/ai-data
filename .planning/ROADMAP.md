@@ -1,22 +1,14 @@
-# Roadmap: Instagram Scraper Pro — Multi-Projeto
+# Roadmap: Instagram Scraper Pro
 
-## Overview
+## Milestones
 
-Add multi-project support to the existing Instagram scraper dashboard. The `projeto` field already exists in all relevant tables (nullable text). This roadmap delivers a `projetos` table, project management APIs, a frontend ProjectSelector component, and full integration so that targets, scraping, and layout are all project-aware. Three phases: backend foundation, frontend selector, then wiring everything together.
+- ✅ **v1.0 Multi-Projeto** - Phases 1-3 (multi-project support)
+- 🚧 **v2.0 API Queue System** - Phases 4-7 (async queues, workers, Docker)
 
 ## Phases
 
-**Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
-
-Decimal phases appear between their surrounding integers in numeric order.
-
-- [ ] **Phase 1: Backend Foundation** - Projetos table and project-aware APIs
-- [ ] **Phase 2: Project Selector** - Frontend component for selecting and creating projects
-- [ ] **Phase 3: Integration** - Wire project context through targets, scraping, and layout
-
-## Phase Details
+<details>
+<summary>v1.0 Multi-Projeto (Phases 1-3)</summary>
 
 ### Phase 1: Backend Foundation
 **Goal**: The system has a persistent registry of projects and APIs to manage them
@@ -63,13 +55,80 @@ Plans:
 Plans:
 - [ ] 03-01-PLAN.md — Wire selectedProjetoId through TargetSelector, ScrapeButton, and page.tsx
 
+</details>
+
+### 🚧 v2.0 API Queue System (In Progress)
+
+**Milestone Goal:** Migrar scraping de sincrono/serverless para sistema assincrono com filas BullMQ, workers dedicados, e infraestrutura Docker Compose.
+
+**Phase Numbering:**
+- Integer phases (4, 5, 6, 7): Planned milestone work
+- Decimal phases (4.1, 5.1): Urgent insertions (marked with INSERTED)
+
+- [ ] **Phase 4: Infrastructure Foundation** - Docker Compose, Redis, Browserless containers and app Dockerfile
+- [ ] **Phase 5: Queue System & Workers** - BullMQ queues, profile/post workers with retry, rate-limiting, and account selection
+- [ ] **Phase 6: API & Notifications** - Async REST endpoints, job status polling, Resend email alerts
+- [ ] **Phase 7: Login Page & Cookies** - Browserless login UI for manual Instagram login and cookie capture
+
+## Phase Details
+
+### Phase 4: Infrastructure Foundation
+**Goal**: All services run as containers via Docker Compose, with Redis and Browserless available as shared infrastructure
+**Depends on**: Phase 3 (v1.0 complete)
+**Requirements**: INFRA-01, INFRA-02, INFRA-03, INFRA-04
+**Success Criteria** (what must be TRUE):
+  1. Running `docker compose up` starts all services (app, Redis, Browserless, Bull Board) without errors
+  2. The Next.js app runs inside a container and serves pages at localhost
+  3. Redis is reachable from the app container and accepts BullMQ connections
+  4. Bull Board web UI is accessible via browser and shows empty queue dashboards
+**Plans**: TBD
+
+### Phase 5: Queue System & Workers
+**Goal**: Scraping jobs are processed asynchronously by dedicated workers with automatic account selection, retry logic, and Instagram rate-limit compliance
+**Depends on**: Phase 4
+**Requirements**: QUEUE-01, QUEUE-02, QUEUE-03, QUEUE-04, QUEUE-05, ACCT-01, ACCT-02, ACCT-04
+**Success Criteria** (what must be TRUE):
+  1. A profile-scrape job extracts bio, highlights, and post list, then automatically enqueues individual post-details jobs
+  2. A post-details job extracts likes, comments, video URL, and carousel images for a single post
+  3. Workers automatically pick the next available account via round-robin and fall back to the next account if cookies are invalid
+  4. Failed jobs are retried with exponential backoff, and jobs without available accounts are re-queued with a 30-minute delay
+  5. Workers throttle requests to respect Instagram rate limits (~2 requests/min per account)
+**Plans**: TBD
+
+### Phase 6: API & Notifications
+**Goal**: External consumers can trigger scraping via REST API and monitor job progress, with email alerts when no accounts are available
+**Depends on**: Phase 5
+**Requirements**: API-01, API-02, API-03, ACCT-03
+**Success Criteria** (what must be TRUE):
+  1. POST /api/scrape accepts a scrape request and returns 202 Accepted with a jobId
+  2. GET /api/jobs/:id returns the current status, progress percentage, and result of a specific job
+  3. GET /api/jobs returns a filtered list of jobs by projetoId and/or status
+  4. When no accounts with valid cookies are available, an email is sent via Resend with alert and instructions
+**Plans**: TBD
+
+### Phase 7: Login Page & Cookies
+**Goal**: Admin can manually log into Instagram through an embedded browser and capture session cookies to restore scraping capability
+**Depends on**: Phase 4 (Browserless container)
+**Requirements**: LOGIN-01, LOGIN-02, LOGIN-03, LOGIN-04
+**Success Criteria** (what must be TRUE):
+  1. Page /admin/login-session displays a Browserless-powered embedded browser pointing to Instagram login
+  2. User can interact with the embedded browser to complete Instagram login (typing, clicking, 2FA)
+  3. Clicking "Capturar Cookies" extracts cookies from the session, encrypts them, and saves to the database
+  4. After cookie capture, the account is marked as cookie_valid=true and is_active=true, making it available for workers
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3
+Phases execute in numeric order: 4 -> 5 -> 6 -> 7
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Backend Foundation | 2/2 | Complete | - |
-| 2. Project Selector | 0/1 | Not started | - |
-| 3. Integration | 0/1 | Not started | - |
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 1. Backend Foundation | v1.0 | 2/2 | Complete | - |
+| 2. Project Selector | v1.0 | 1/1 | Complete | - |
+| 3. Integration | v1.0 | 0/1 | Not started | - |
+| 4. Infrastructure Foundation | v2.0 | 0/? | Not started | - |
+| 5. Queue System & Workers | v2.0 | 0/? | Not started | - |
+| 6. API & Notifications | v2.0 | 0/? | Not started | - |
+| 7. Login Page & Cookies | v2.0 | 0/? | Not started | - |
