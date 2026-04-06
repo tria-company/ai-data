@@ -127,8 +127,12 @@ Plans:
   2. User can interact with the embedded browser to complete Instagram login (typing, clicking, 2FA)
   3. Clicking "Capturar Cookies" extracts cookies from the session, encrypts them, and saves to the database
   4. After cookie capture, the account is marked as cookie_valid=true and is_active=true, making it available for workers
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 07-01-PLAN.md — Socket.io server, CDP screencast browser session manager, API fixes for cookie_valid
+- [ ] 07-02-PLAN.md — Login session page UI with browser viewer, account dropdown, cookie capture
 
 ## Progress
 
@@ -143,4 +147,4 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7
 | 4. Infrastructure Foundation | v2.0 | 2/2 | Complete | - |
 | 5. Queue System & Workers | v2.0 | 2/2 | Complete | - |
 | 6. API & Notifications | v2.0 | 0/2 | Planning | - |
-| 7. Login Page & Cookies | v2.0 | 0/? | Not started | - |
+| 7. Login Page & Cookies | v2.0 | 0/2 | Planning | - |
