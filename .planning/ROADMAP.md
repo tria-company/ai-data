@@ -97,7 +97,11 @@ Plans:
   3. Workers automatically pick the next available account via round-robin and fall back to the next account if cookies are invalid
   4. Failed jobs are retried with exponential backoff, and jobs without available accounts are re-queued with a 30-minute delay
   5. Workers throttle requests to respect Instagram rate limits (~2 requests/min per account)
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Browser abstraction, account selector, DB migration, worker Dockerfile
+- [ ] 05-02-PLAN.md — Profile worker, post worker, Docker Compose integration
 
 ### Phase 6: API & Notifications
 **Goal**: External consumers can trigger scraping via REST API and monitor job progress, with email alerts when no accounts are available
@@ -132,7 +136,7 @@ Phases execute in numeric order: 4 -> 5 -> 6 -> 7
 | 1. Backend Foundation | v1.0 | 2/2 | Complete | - |
 | 2. Project Selector | v1.0 | 1/1 | Complete | - |
 | 3. Integration | v1.0 | 0/1 | Not started | - |
-| 4. Infrastructure Foundation | v2.0 | 0/2 | Planning | - |
-| 5. Queue System & Workers | v2.0 | 0/? | Not started | - |
+| 4. Infrastructure Foundation | v2.0 | 2/2 | Complete | - |
+| 5. Queue System & Workers | v2.0 | 0/2 | Planning | - |
 | 6. API & Notifications | v2.0 | 0/? | Not started | - |
 | 7. Login Page & Cookies | v2.0 | 0/? | Not started | - |
