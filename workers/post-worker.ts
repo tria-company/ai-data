@@ -1,7 +1,7 @@
 import { Worker, Job } from 'bullmq';
 import { connection, postDetailsQueue } from '../lib/queue';
 import { getBrowser } from '../lib/browser';
-import { selectAccount, markAccountInvalid, isCookieError } from '../lib/account-selector';
+import { selectAccount, markAccountInvalid, isCookieError, hasValidAccounts } from '../lib/account-selector';
 import { sendNoAccountsAlert } from '../lib/notifications';
 import { decrypt } from '../lib/encryption';
 import { supabase } from '../lib/supabase';
@@ -48,7 +48,18 @@ async function processPostJob(job: Job<PostJobData>) {
     }
   }
 
-  // No accounts available — send email alert, then re-queue with 30-minute delay
+  // Distinguish: rate-limited temporarily vs no valid accounts at all
+  const accountsExist = await hasValidAccounts();
+  if (accountsExist) {
+    // Accounts exist but are in cooldown — retry in 90s, no alert
+    await postDetailsQueue.add('post-details', job.data, {
+      delay: 90 * 1000, // 90 seconds (well above the 30s rate-limit TTL)
+    });
+    console.log(`[post-worker] Accounts rate-limited, re-queued with 90s delay`);
+    return { status: 'requeued', reason: 'rate_limited' };
+  }
+
+  // No valid accounts at all — send email alert + long delay
   await sendNoAccountsAlert({
     jobId: job.id!,
     username,

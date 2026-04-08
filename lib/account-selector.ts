@@ -126,3 +126,17 @@ export function isCookieError(error: unknown): boolean {
 export function isNoAccountsAvailable(account: Account | null): account is null {
   return account === null;
 }
+
+/**
+ * hasValidAccounts() — Returns true if at least one account with valid cookies exists,
+ * regardless of current rate-limit state. Use to distinguish "rate-limited temporarily"
+ * from "no valid accounts at all" when selectAccount returns null.
+ */
+export async function hasValidAccounts(): Promise<boolean> {
+  const { count } = await supabase
+    .from('scrapper_accounts')
+    .select('*', { count: 'exact', head: true })
+    .eq('cookie_valid', true)
+    .eq('is_active', true);
+  return (count ?? 0) > 0;
+}

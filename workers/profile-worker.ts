@@ -1,7 +1,7 @@
 import { Worker, Job } from 'bullmq';
 import { connection, postDetailsQueue, profileScrapeQueue } from '../lib/queue';
 import { getBrowser } from '../lib/browser';
-import { selectAccount, markAccountInvalid, isCookieError } from '../lib/account-selector';
+import { selectAccount, markAccountInvalid, isCookieError, hasValidAccounts } from '../lib/account-selector';
 import { sendNoAccountsAlert } from '../lib/notifications';
 import { decrypt } from '../lib/encryption';
 import { supabase } from '../lib/supabase';
@@ -47,7 +47,17 @@ async function processProfileJob(job: Job<ProfileJobData>) {
     }
   }
 
-  // No accounts available — send email alert, then re-queue with 30-minute delay
+  // Distinguish: rate-limited temporarily vs no valid accounts at all
+  const accountsExist = await hasValidAccounts();
+  if (accountsExist) {
+    await profileScrapeQueue.add('profile-scrape', job.data, {
+      delay: 90 * 1000, // 90 seconds
+    });
+    console.log(`[profile-worker] Accounts rate-limited, re-queued with 90s delay`);
+    return { status: 'requeued', reason: 'rate_limited' };
+  }
+
+  // No valid accounts at all — send email alert + long delay
   await sendNoAccountsAlert({
     jobId: job.id!,
     username: cleanUsername,
@@ -153,16 +163,29 @@ async function scrapeProfile(
       highlightsData = await extractHighlights(page, cleanUsername);
       if (highlightsData.length > 0) {
         for (const hl of highlightsData) {
-          await supabase.from('profile_highlights').upsert(
-            {
-              username: cleanUsername,
-              title: hl.title,
-              cover_url: hl.coverUrl,
-              highlight_url: hl.highlightUrl,
+          const { data: hlRows } = await supabase
+            .from('profile_highlights')
+            .upsert(
+              {
+                username: cleanUsername,
+                title: hl.title,
+                cover_url: hl.coverUrl,
+                highlight_url: hl.highlightUrl,
+                ...(projetoId ? { projeto: projetoId } : {}),
+              },
+              { onConflict: 'username,title' },
+            )
+            .select('id');
+
+          // Save cover image as a highlight item
+          if (hlRows && hlRows.length > 0 && hl.coverUrl) {
+            await supabase.from('profile_highlight_items').insert({
+              highlight_id: hlRows[0].id,
+              media_url: hl.coverUrl,
+              media_type: 'image',
               ...(projetoId ? { projeto: projetoId } : {}),
-            },
-            { onConflict: 'username,title' },
-          );
+            });
+          }
         }
         console.log(`[profile-worker] ${highlightsData.length} highlights saved for @${cleanUsername}`);
       }
@@ -228,6 +251,29 @@ async function scrapeProfile(
       console.log(`[profile-worker] Enqueued ${postJobs.length} post-details jobs for @${cleanUsername}`);
     }
     await job.updateProgress(100);
+
+    // Upsert users_scrapping with completion status
+    try {
+      const now = new Date().toISOString();
+      let updateQuery = supabase
+        .from('users_scrapping')
+        .update({ status: 'completed', data_ultimo_scrapping: now })
+        .eq('user', cleanUsername);
+      if (projetoId) updateQuery = updateQuery.eq('projeto', projetoId);
+      const { data: updated } = await updateQuery.select('id');
+      if (!updated || updated.length === 0) {
+        // Row doesn't exist yet — create it
+        await supabase.from('users_scrapping').insert({
+          user: cleanUsername,
+          ...(projetoId ? { projeto: projetoId } : {}),
+          status: 'completed',
+          data_ultimo_scrapping: now,
+        });
+      }
+      console.log(`[profile-worker] users_scrapping upserted for @${cleanUsername}`);
+    } catch (e: any) {
+      console.warn(`[profile-worker] Failed to upsert users_scrapping: ${e.message}`);
+    }
 
     return {
       status: 'success',

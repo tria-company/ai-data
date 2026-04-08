@@ -207,12 +207,13 @@ export async function extractPostLikes(page: Page, postUrl: string, onLog?: (msg
         // Instagram renders likes as a span[role="button"] containing just a number (e.g. "12")
         // located near the like/comment/share action buttons section
         const likesClicked = await newPage.evaluate(() => {
-            // Strategy 1: Find span[role="button"] that contains only a number (the likes count)
+            // Strategy 1: Find span[role="button"] that contains a likes count
+            // Handles: "12", "1,234", "5,5 mil", "1.2k", "2 mil", "1,234 curtidas", etc.
+            const likeCountPattern = /^\d[\d,.]*(\s*(mil|k|m|b|likes?|curtidas?))?$/i;
             const roleButtons = document.querySelectorAll('span[role="button"]');
             for (const el of Array.from(roleButtons)) {
-                const text = (el.textContent || '').trim();
-                // Match a plain number (likes count) or "N likes"/"N curtidas"
-                if (/^\d[\d,.]*$/.test(text) || /^\d[\d,.]*\s*(likes?|curtidas?)$/i.test(text)) {
+                const text = (el.textContent || '').trim().replace(/\u00a0/g, ' ');
+                if (likeCountPattern.test(text)) {
                     (el as HTMLElement).click();
                     return true;
                 }
@@ -226,7 +227,7 @@ export async function extractPostLikes(page: Page, postUrl: string, onLog?: (msg
             // Strategy 3: Any clickable element with "likes"/"curtidas" text near the post
             const spans = document.querySelectorAll('span, a, button');
             for (const el of Array.from(spans)) {
-                const text = (el.textContent || '').trim();
+                const text = (el.textContent || '').trim().replace(/\u00a0/g, ' ');
                 if (/^\d[\d,.]*\s*(likes?|curtidas?)$/i.test(text) || /^(liked by|curtido por)/i.test(text)) {
                     (el as HTMLElement).click();
                     return true;
@@ -352,106 +353,78 @@ export async function extractPostComments(page: Page, postUrl: string, onLog?: (
             await delay(1500);
         }
 
-        // Extract comments from the post page
-        // Instagram comment structure: each comment has a username link (a.notranslate._a6hd)
-        // with href="/username/" and the comment text in a sibling/nearby span.
-        // Comment permalink links have href like "/p/CODE/c/COMMENT_ID/"
-        const comments = await newPage.evaluate(() => {
-            const results: Array<{username: string, text: string}> = [];
-            const seen = new Set<string>();
-            const reservedPaths = ['explore', 'accounts', 'p', 'reel', 'stories', 'direct', 'reels'];
+        // Extract comments from the post page.
+        // Structure confirmed from live DOM (April 2026):
+        //   li._a9zj._a9zl                       ← comment row
+        //     div._a9zr
+        //       h3 > a._a6hd[href="/username/"]   ← username link (no notranslate class)
+        //       div.xt0psk2
+        //         span._ap3a._aaco...[dir="auto"] ← comment text
+        const comments = await newPage.evaluate(`(function() {
+            var results = [];
+            var seen = new Set();
+            var reservedPaths = ['explore', 'accounts', 'p', 'reel', 'stories', 'direct', 'reels'];
 
-            // Find all username links in comments (notranslate class identifies profile links)
-            const usernameLinks = document.querySelectorAll('a.notranslate._a6hd[href^="/"]');
+            // Each top-level comment is a li._a9zj._a9zl
+            var commentRows = document.querySelectorAll('li._a9zj._a9zl');
+            for (var i = 0; i < commentRows.length; i++) {
+                var row = commentRows[i];
+                var detailsDiv = row.querySelector('div._a9zr');
+                if (!detailsDiv) continue;
 
-            for (const link of Array.from(usernameLinks)) {
-                const href = link.getAttribute('href') || '';
-                const nameMatch = href.match(/^\/([a-zA-Z0-9_.]+)\/?$/);
-                if (!nameMatch) continue;
-
-                const username = nameMatch[1];
-                if (reservedPaths.includes(username)) continue;
-
-                // Navigate up to find the comment container
-                // Each comment block is a series of nested divs containing:
-                // 1) The username span (._ap3a._aaco._aacw._aacx._aad7._aade)
-                // 2) The comment text span (sibling)
-                // 3) A timestamp link with /c/ in the href
-                const container = link.closest('div.x78zum5') ||
-                    link.closest('div[class*="x1iyjqo2"]') ||
-                    link.parentElement?.parentElement?.parentElement?.parentElement?.parentElement;
-                if (!container) continue;
-
-                // Check if this container has a comment permalink (confirms it's a comment, not a caption header)
-                const commentPermalink = container.querySelector('a[href*="/c/"]');
-
-                // Find comment text - it's in a span that is NOT the username, timestamp, or "Responder"
-                let commentText = '';
-
-                // Strategy 1: Look for the text span that appears after the username in the same text block
-                // The structure is: <span><username_link></span>&nbsp;<span>comment text</span>
-                const parentSpan = link.closest('span.xt0psk2') ||
-                    link.closest('span[class*="x1lliihq"]');
-                if (parentSpan) {
-                    // The comment text is typically in a sibling div after the username's containing div
-                    const textContainer = parentSpan.closest('div[class*="x1c4vz4f"]')?.parentElement;
-                    if (textContainer) {
-                        const textDivs = textContainer.querySelectorAll('div[class*="x1cy8zhl"] span[dir="auto"], div[class*="xdt5ytf"] > span[dir="auto"]');
-                        for (const textSpan of Array.from(textDivs)) {
-                            const spanText = (textSpan.textContent || '').trim();
-                            if (
-                                spanText.length > 0 &&
-                                spanText !== username &&
-                                !/^\d+\s*(sem|min|[smhdw])$/i.test(spanText) &&
-                                !/^(Reply|Responder|Curtir|Like)$/i.test(spanText)
-                            ) {
-                                commentText = spanText;
-                                break;
-                            }
-                        }
-                    }
+                // Username: first _a6hd link inside h3 (skip photo link in _a9zo)
+                var usernameLink = detailsDiv.querySelector('h3 a._a6hd[href^="/"]');
+                if (!usernameLink) {
+                    // Fallback: any _a6hd with a simple /username/ href
+                    usernameLink = detailsDiv.querySelector('a._a6hd[href^="/"]');
                 }
+                if (!usernameLink) continue;
 
-                // Strategy 2: Broader search in the container for comment text
-                if (!commentText && container) {
-                    const allSpans = container.querySelectorAll('span[dir="auto"]');
-                    for (const span of Array.from(allSpans)) {
-                        const spanText = (span.textContent || '').trim();
-                        // Skip username, timestamps, and action buttons
-                        if (
-                            spanText.length > 0 &&
-                            spanText !== username &&
-                            !spanText.includes(username) &&
-                            !/^\d+\s*(sem|min|[smhdw])$/i.test(spanText) &&
-                            !/^(Reply|Responder|Curtir|Like)$/i.test(spanText) &&
-                            !span.closest('svg') && // Skip SVG title text
-                            !span.querySelector('a') // Skip spans that contain links (username spans)
-                        ) {
-                            commentText = spanText;
+                var href = usernameLink.getAttribute('href') || '';
+                var nameMatch = href.match(/^\\/([a-zA-Z0-9_.]+)\\/?$/);
+                if (!nameMatch) continue;
+                var username = nameMatch[1];
+                if (reservedPaths.indexOf(username) !== -1) continue;
+
+                // Comment text: span with bio-style classes inside xt0psk2 container
+                var textSpan = detailsDiv.querySelector('div.xt0psk2 span._ap3a._aaco[dir="auto"]');
+                if (!textSpan) {
+                    // Fallback: any span[dir="auto"] that isn't empty/timestamp/button
+                    var spans = detailsDiv.querySelectorAll('span[dir="auto"]');
+                    for (var j = 0; j < spans.length; j++) {
+                        var t = (spans[j].textContent || '').trim();
+                        if (t.length > 0 && t !== username &&
+                            !/^\\d+\\s*(sem|min|[smhdw])$/i.test(t) &&
+                            !/^(Reply|Responder|Curtir|Like)$/i.test(t) &&
+                            !spans[j].querySelector('a')) {
+                            textSpan = spans[j];
                             break;
                         }
                     }
                 }
+                if (!textSpan) continue;
 
-                if (commentText) {
-                    const key = `${username}:${commentText}`;
-                    if (!seen.has(key)) {
-                        seen.add(key);
-                        results.push({ username, text: commentText });
-                    }
+                var commentText = (textSpan.textContent || '').trim();
+                if (!commentText) continue;
+
+                var key = username + ':' + commentText;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    results.push({ username: username, text: commentText });
                 }
             }
 
             return results;
-        });
+        })()`);
+        const typedComments = (comments as Array<{username: string, text: string}>);
 
-        if (comments.length === 0) {
+        if (typedComments.length === 0) {
             console.warn(`[extractPostComments] 0 comments extracted for ${postUrl}`);
             if (onLog) onLog(`[extractPostComments] 0 comments extracted for ${postUrl}`);
         }
 
         await newPage.close();
-        return comments;
+        return typedComments;
     } catch (e) {
         console.warn(`[extractPostComments] Error for ${postUrl}:`, e);
         if (onLog) onLog(`[extractPostComments] Error for ${postUrl}: ${e}`);
@@ -462,62 +435,72 @@ export async function extractPostComments(page: Page, postUrl: string, onLog?: (
 
 export async function extractBio(page: Page, onLog?: (msg: string) => void): Promise<string> {
     try {
-        const bio = await page.evaluate(() => {
-            const skipPatterns = [
+        // Click "mais"/"more" to expand truncated bio before extracting
+        await page.evaluate(() => {
+            const spans = document.querySelectorAll('span[dir="auto"]');
+            for (const el of Array.from(spans)) {
+                const text = (el.textContent || '').trim().toLowerCase();
+                if (text === 'mais' || text === 'more') {
+                    (el as HTMLElement).click();
+                    break;
+                }
+            }
+        });
+        await delay(800);
+
+        // Passed as a string to avoid tsx/esbuild injecting __name() calls inside the function body,
+        // which would break execution in the browser context where __name is not defined.
+        const bio = await page.evaluate(`(function() {
+            var skipPatterns = [
                 /^(posts?|followers?|following|publicações|seguidores|seguindo)$/i,
-                /^\d[\d,.mkMK\s]*\s*(posts?|followers?|following|publicações|seguidores|seguindo)$/i,
+                /^\\d[\\d,.mkMK\\s]*\\s*(posts?|followers?|following|publicações|seguidores|seguindo)$/i,
                 /^(seguido|followed)/i,
             ];
-            function isSkippable(text: string) {
+            function isSkippable(text) {
                 return text.length < 5 ||
-                /^\d[\d,.mkMK]*$/.test(text) ||
-                skipPatterns.some(p => p.test(text));
+                    /^\\d[\\d,.mkMK]*$/.test(text) ||
+                    skipPatterns.some(function(p) { return p.test(text); });
             }
 
-            // Strategy 1: Bio span with Instagram's _ap3a class pattern (most reliable)
-            // The bio section is in a separate <section> below the header, using span._ap3a._aaco
-            const bioSpans = document.querySelectorAll('span._ap3a._aaco._aacu._aacx._aad7._aade[dir="auto"]');
-            for (const span of Array.from(bioSpans)) {
-                const text = (span.textContent || '').trim();
-                if (text.length >= 5 && !isSkippable(text)) {
-                    return text;
-                }
+            // Strategy 1: Bio span with Instagram's _ap3a class pattern
+            var bioSpans = document.querySelectorAll('span._ap3a._aaco._aacu._aacx._aad7._aade[dir="auto"]');
+            for (var i = 0; i < bioSpans.length; i++) {
+                var text = (bioSpans[i].textContent || '').trim();
+                if (text.length >= 5 && !isSkippable(text)) return text;
             }
 
             // Strategy 2: Look in all <section> elements for bio-like content
-            // The bio is typically in the second section after the profile pic section
-            const sections = document.querySelectorAll('section');
-            for (const section of Array.from(sections)) {
-                const spans = section.querySelectorAll('span[dir="auto"]');
-                for (const span of Array.from(spans)) {
-                    const text = (span.textContent || '').trim();
-                    if (isSkippable(text)) continue;
-                    if (span.closest('h1') || span.closest('h2')) continue;
-                    // Bio text is typically longer than username/name and descriptive
-                    if (text.length >= 20) return text;
+            var sections = document.querySelectorAll('section');
+            for (var s = 0; s < sections.length; s++) {
+                var spans = sections[s].querySelectorAll('span[dir="auto"]');
+                for (var j = 0; j < spans.length; j++) {
+                    var t = (spans[j].textContent || '').trim();
+                    if (isSkippable(t)) continue;
+                    if (spans[j].closest('h1') || spans[j].closest('h2')) continue;
+                    if (t.length >= 20) return t;
                 }
             }
 
             // Strategy 3: Look inside header (older layouts)
-            const headerSection = document.querySelector('header section') || document.querySelector('header');
+            var headerSection = document.querySelector('header section') || document.querySelector('header');
             if (headerSection) {
-                const spans = headerSection.querySelectorAll('span[dir="auto"]');
-                for (const span of Array.from(spans)) {
-                    const text = (span.textContent || '').trim();
-                    if (isSkippable(text)) continue;
-                    if (span.closest('h1') || span.closest('h2')) continue;
-                    return text;
+                var headerSpans = headerSection.querySelectorAll('span[dir="auto"]');
+                for (var k = 0; k < headerSpans.length; k++) {
+                    var ht = (headerSpans[k].textContent || '').trim();
+                    if (isSkippable(ht)) continue;
+                    if (headerSpans[k].closest('h1') || headerSpans[k].closest('h2')) continue;
+                    return ht;
                 }
             }
 
             // Strategy 4: Legacy layout
-            const legacyBio = document.querySelector('div.-vDIg span');
+            var legacyBio = document.querySelector('div.-vDIg span');
             if (legacyBio) return (legacyBio.textContent || '').trim();
 
             return '';
-        });
+        })()`);
 
-        return bio;
+        return (bio as string) || '';
     } catch (e) {
         console.warn('[extractBio] Error:', e);
         if (onLog) onLog(`[extractBio] Error: ${e}`);

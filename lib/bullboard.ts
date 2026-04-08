@@ -4,7 +4,7 @@ import { ExpressAdapter } from '@bull-board/express';
 import { profileScrapeQueue, postDetailsQueue } from './queue';
 
 const serverAdapter = new ExpressAdapter();
-serverAdapter.setBasePath('/api/admin/queues');
+serverAdapter.setBasePath('/admin/queues');
 
 createBullBoard({
   queues: [
