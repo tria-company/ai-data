@@ -4,7 +4,7 @@ import { profileScrapeQueue } from '@/lib/queue';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { accountId, targetUsernames, projetoId } = body;
+    const { accountId, targetUsernames, projetoId, maxPosts } = body;
 
     if (!targetUsernames || !Array.isArray(targetUsernames) || targetUsernames.length === 0) {
       return NextResponse.json(
@@ -20,6 +20,7 @@ export async function POST(request: Request) {
         username,
         projetoId: projetoId || null,
         accountId: accountId || null,
+        ...(maxPosts != null && { maxPosts: Number(maxPosts) }),
       });
       jobIds.push(job.id!);
     }

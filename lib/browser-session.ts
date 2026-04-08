@@ -17,9 +17,18 @@ export interface BrowserSession {
 export async function createSession(
   onFrame: (base64Data: string) => void
 ): Promise<BrowserSession> {
-  const wsEndpoint = process.env.BROWSERLESS_WS_ENDPOINT || 'ws://browserless:3000';
+  const wsBase = process.env.BROWSERLESS_WS_ENDPOINT || 'ws://browserless:3000';
+  const proxyServer = process.env.PROXY_SERVER;
+  const wsEndpoint = proxyServer
+    ? `${wsBase}?--proxy-server=${encodeURIComponent(proxyServer)}`
+    : wsBase;
   const browser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
   const page = await browser.newPage();
+  const proxyUsername = process.env.PROXY_USERNAME;
+  const proxyPassword = process.env.PROXY_PASSWORD;
+  if (proxyUsername && proxyPassword) {
+    await page.authenticate({ username: proxyUsername, password: proxyPassword });
+  }
   await page.setViewport({ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT });
   await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'networkidle2' });
 
