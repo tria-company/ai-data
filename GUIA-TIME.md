@@ -58,7 +58,7 @@ Visualizador de logs em tempo real de todos os containers Docker (app, workers, 
 
 **Login:** autenticação básica HTTP
 - **Usuário:** `admin`
-- **Senha:** definido pelo administrador via `htpasswd`
+- **Senha:** `Tria@2026`
 
 > Atenção: acesso via `http://` (sem SSL).
 
@@ -72,7 +72,7 @@ Monitoramento de CPU, memória, disco e rede do servidor em tempo real.
 
 **Login:** autenticação básica HTTP
 - **Usuário:** `admin`
-- **Senha:** mesma senha do Dozzle
+- **Senha:** `Tria@2026`
 
 > Atenção: acesso via `http://` (sem SSL).
 
