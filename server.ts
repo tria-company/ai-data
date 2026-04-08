@@ -33,7 +33,7 @@ nextApp.prepare().then(() => {
   expressApp.use('/admin/queues', serverAdapter.getRouter());
 
   // All other requests handled by Next.js
-  expressApp.all('*', (req: express.Request, res: express.Response) => {
+  expressApp.use((req: express.Request, res: express.Response) => {
     return handle(req, res);
   });
 
