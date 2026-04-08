@@ -115,7 +115,9 @@ export function isCookieError(error: unknown): boolean {
     message.includes('accounts/login') ||
     message.includes('login_required') ||
     message.includes('Log in') ||
-    message.includes('LoginRequired')
+    message.includes('LoginRequired') ||
+    message.includes('challenge') ||
+    message.includes('ChallengeRoute')
   );
 }
 

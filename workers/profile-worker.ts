@@ -132,6 +132,13 @@ async function scrapeProfile(
     });
     await delay(Math.random() * 2000 + 2000);
 
+    // Check if redirected to login or challenge page
+    const currentUrl = page.url();
+    if (currentUrl.includes('accounts/login') || currentUrl.includes('challenge') || !currentUrl.includes(cleanUsername)) {
+      console.warn(`[profile-worker] Redirected to ${currentUrl} — cookies invalid for account ${account.username}`);
+      throw new Error(`Cookie invalid: redirected to challenge page`);
+    }
+
     // Check if private
     const isPrivate = await checkIfPrivate(page);
     if (isPrivate) {
