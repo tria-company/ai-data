@@ -86,8 +86,12 @@ export async function getBrowser(options: BrowserOptions = { headless: true }) {
 
   if (browserlessEndpoint) {
     // Docker/Worker mode: connect to Browserless via WebSocket
+    const proxyServer = process.env.PROXY_SERVER;
+    const wsEndpoint = proxyServer
+      ? `${browserlessEndpoint}?--proxy-server=${encodeURIComponent(proxyServer)}`
+      : browserlessEndpoint;
     return await puppeteer.connect({
-      browserWSEndpoint: browserlessEndpoint,
+      browserWSEndpoint: wsEndpoint,
     });
   }
 

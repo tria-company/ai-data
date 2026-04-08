@@ -97,6 +97,11 @@ async function scrapePostDetails(
   const browser = await getBrowser();
   try {
     const page = await browser.newPage();
+    const proxyUsername = process.env.PROXY_USERNAME;
+    const proxyPassword = process.env.PROXY_PASSWORD;
+    if (proxyUsername && proxyPassword) {
+      await page.authenticate({ username: proxyUsername, password: proxyPassword });
+    }
 
     // Set cookies (sanitize for Puppeteer compatibility)
     if (cookies && cookies.length > 0) {
