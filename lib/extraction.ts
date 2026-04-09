@@ -4,6 +4,29 @@ import { Page } from 'puppeteer-core';
 // Helper for delays
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Create a new page that inherits cookies and proxy auth from the source page.
+ */
+async function createAuthenticatedPage(sourcePage: Page): Promise<Page> {
+    const browser = sourcePage.browser();
+    const newPage = await browser.newPage();
+
+    // Copy cookies from source page
+    const cookies = await sourcePage.cookies();
+    if (cookies.length > 0) {
+        await newPage.setCookie(...cookies);
+    }
+
+    // Proxy auth (if set via env)
+    const proxyUsername = process.env.PROXY_USERNAME;
+    const proxyPassword = process.env.PROXY_PASSWORD;
+    if (proxyUsername && proxyPassword) {
+        await newPage.authenticate({ username: proxyUsername, password: proxyPassword });
+    }
+
+    return newPage;
+}
+
 export async function checkIfPrivate(page: Page, onLog?: (msg: string) => void): Promise<boolean> {
     try {
         await delay(1500);
@@ -137,7 +160,7 @@ export async function scrollToBottom(page: Page, username: string, maxPosts = 50
 }
 
 export async function extractVideoUrl(page: Page, postUrl: string): Promise<any> {
-    const newPage = await page.browser().newPage();
+    const newPage = await createAuthenticatedPage(page);
     try {
         await newPage.goto(postUrl, { waitUntil: "networkidle2", timeout: 30000 });
         await delay(1500);
@@ -168,7 +191,7 @@ export async function extractVideoUrl(page: Page, postUrl: string): Promise<any>
 }
 
 export async function extractCarouselImages(page: Page, postUrl: string): Promise<any> {
-    const newPage = await page.browser().newPage();
+    const newPage = await createAuthenticatedPage(page);
     try {
         await newPage.goto(postUrl, { waitUntil: "networkidle2", timeout: 30000 });
         await delay(1500);
@@ -198,7 +221,7 @@ export async function extractCarouselImages(page: Page, postUrl: string): Promis
 }
 
 export async function extractPostLikes(page: Page, postUrl: string, onLog?: (msg: string) => void): Promise<string[]> {
-    const newPage = await page.browser().newPage();
+    const newPage = await createAuthenticatedPage(page);
     try {
         await newPage.goto(postUrl, { waitUntil: "networkidle2", timeout: 30000 });
         await delay(2000);
@@ -325,7 +348,7 @@ export async function extractPostLikes(page: Page, postUrl: string, onLog?: (msg
 }
 
 export async function extractPostComments(page: Page, postUrl: string, onLog?: (msg: string) => void): Promise<Array<{username: string, text: string}>> {
-    const newPage = await page.browser().newPage();
+    const newPage = await createAuthenticatedPage(page);
     try {
         await newPage.goto(postUrl, { waitUntil: "networkidle2", timeout: 30000 });
         await delay(2000);
