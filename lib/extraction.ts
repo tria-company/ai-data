@@ -377,57 +377,61 @@ export async function extractPostComments(page: Page, postUrl: string, onLog?: (
         }
 
         // Extract comments from the post page.
-        // Structure confirmed from live DOM (April 2026):
-        //   li._a9zj._a9zl                       ← comment row
-        //     div._a9zr
-        //       h3 > a._a6hd[href="/username/"]   ← username link (no notranslate class)
-        //       div.xt0psk2
-        //         span._ap3a._aaco...[dir="auto"] ← comment text
+        // Strategy: find all username links (a._a6hd) with /username/ hrefs,
+        // then walk up to the comment container and find the comment text
+        // in a nearby span[dir="auto"]. This is resilient to Instagram
+        // changing between li/div/ul container elements.
         const comments = await newPage.evaluate(`(function() {
             var results = [];
             var seen = new Set();
             var reservedPaths = ['explore', 'accounts', 'p', 'reel', 'stories', 'direct', 'reels'];
 
-            // Each top-level comment is a li._a9zj._a9zl
-            var commentRows = document.querySelectorAll('li._a9zj._a9zl');
-            for (var i = 0; i < commentRows.length; i++) {
-                var row = commentRows[i];
-                var detailsDiv = row.querySelector('div._a9zr');
-                if (!detailsDiv) continue;
-
-                // Username: first _a6hd link inside h3 (skip photo link in _a9zo)
-                var usernameLink = detailsDiv.querySelector('h3 a._a6hd[href^="/"]');
-                if (!usernameLink) {
-                    // Fallback: any _a6hd with a simple /username/ href
-                    usernameLink = detailsDiv.querySelector('a._a6hd[href^="/"]');
-                }
-                if (!usernameLink) continue;
-
-                var href = usernameLink.getAttribute('href') || '';
+            // Find all username links in the page
+            var allLinks = document.querySelectorAll('a._a6hd[href^="/"]');
+            for (var i = 0; i < allLinks.length; i++) {
+                var link = allLinks[i];
+                var href = link.getAttribute('href') || '';
                 var nameMatch = href.match(/^\\/([a-zA-Z0-9_.]+)\\/?$/);
                 if (!nameMatch) continue;
                 var username = nameMatch[1];
                 if (reservedPaths.indexOf(username) !== -1) continue;
 
-                // Comment text: span with bio-style classes inside xt0psk2 container
-                var textSpan = detailsDiv.querySelector('div.xt0psk2 span._ap3a._aaco[dir="auto"]');
-                if (!textSpan) {
-                    // Fallback: any span[dir="auto"] that isn't empty/timestamp/button
-                    var spans = detailsDiv.querySelectorAll('span[dir="auto"]');
-                    for (var j = 0; j < spans.length; j++) {
-                        var t = (spans[j].textContent || '').trim();
-                        if (t.length > 0 && t !== username &&
-                            !/^\\d+\\s*(sem|min|[smhdw])$/i.test(t) &&
-                            !/^(Reply|Responder|Curtir|Like)$/i.test(t) &&
-                            !spans[j].querySelector('a')) {
-                            textSpan = spans[j];
-                            break;
-                        }
+                // Walk up to find the comment container (up to 8 levels)
+                var container = link;
+                for (var up = 0; up < 8; up++) {
+                    if (!container.parentElement) break;
+                    container = container.parentElement;
+                    // Stop at a reasonable container boundary
+                    var tag = container.tagName.toLowerCase();
+                    if (tag === 'li' || tag === 'article') break;
+                    // Also stop if container has multiple username links (too high)
+                    if (container.querySelectorAll('a._a6hd[href^="/"]').length > 2) {
+                        container = container.children[0] || container;
+                        break;
                     }
                 }
-                if (!textSpan) continue;
 
-                var commentText = (textSpan.textContent || '').trim();
+                // Find comment text: span[dir="auto"] that is NOT the username itself
+                var spans = container.querySelectorAll('span[dir="auto"]');
+                var commentText = '';
+                for (var j = 0; j < spans.length; j++) {
+                    var t = (spans[j].textContent || '').trim();
+                    if (t.length === 0) continue;
+                    // Skip if it's the username text
+                    if (t === username) continue;
+                    // Skip timestamps (e.g. "2 sem", "5h", "3 min")
+                    if (/^\\d+\\s*(sem|min|[smhdwya])$/i.test(t)) continue;
+                    // Skip action buttons
+                    if (/^(Reply|Responder|Curtir|Like|Ver tradução|See translation)$/i.test(t)) continue;
+                    // Skip "more" / "mais" expand buttons
+                    if (/^(more|mais)$/i.test(t)) continue;
+                    // Skip if it only contains a link (profile mention)
+                    if (spans[j].children.length === 1 && spans[j].children[0].tagName === 'A') continue;
+                    // This is likely the comment text
+                    commentText = t;
+                    break;
+                }
+
                 if (!commentText) continue;
 
                 var key = username + ':' + commentText;
@@ -435,6 +439,12 @@ export async function extractPostComments(page: Page, postUrl: string, onLog?: (
                     seen.add(key);
                     results.push({ username: username, text: commentText });
                 }
+            }
+
+            // Remove the first result if it looks like the post caption (same as post author)
+            // The post author's caption is usually the first "comment" found
+            if (results.length > 1) {
+                // Keep all — the caller can filter the post author if needed
             }
 
             return results;
