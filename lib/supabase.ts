@@ -122,20 +122,36 @@ export function getSupabaseAnonKeyForProject(projetoId: string): { url: string; 
 }
 
 /**
- * Returns the appropriate Supabase client for a job based on projetoId.
+ * Returns the appropriate Supabase client for a job.
  *
- * - If projetoId is a non-empty string: routes to the tenant-specific client
- *   via getSupabaseForProject().
- * - If projetoId is null/undefined/empty string: falls back to the legacy
- *   getSupabase() client (backward compat for jobs enqueued before
- *   multi-tenant support).
+ * Resolution order (priority):
+ * 1. `dbAccount` (PRIMARY credential router key) — when a non-empty string,
+ *    routes via getSupabaseForProject(dbAccount). `dbAccount` is looked up in
+ *    SUPABASE_PROJECTS and decides WHICH tenant database the job reads/writes.
+ * 2. `projetoIdFallback` — when a non-empty string, routes via
+ *    getSupabaseForProject(projetoIdFallback). Exists for backward compat with
+ *    legacy callers and in-flight queue jobs that only know `projetoId` and
+ *    were previously using it as the DB selector.
+ * 3. Both args null/empty — falls back to the legacy getSupabase() client
+ *    (unchanged last-resort fallback).
  *
- * Use this inside worker job processors where projetoId comes from job.data
- * and may be null for legacy jobs still in the queue.
+ * IMPORTANT: Neither argument is ever written to a DB column by this function.
+ * It ONLY selects which Supabase client to return. The `projeto` column in
+ * downstream writes continues to be driven by the caller's own projetoId
+ * value, completely independent of which client this function returns.
+ *
+ * Use this inside worker job processors where `dbAccount` (new) and
+ * `projetoId` (legacy) come from job.data and may both be null.
  */
-export function getSupabaseForJob(projetoId: string | null | undefined): SupabaseClient {
-  if (projetoId && projetoId.trim() !== '') {
-    return getSupabaseForProject(projetoId);
+export function getSupabaseForJob(
+  dbAccount: string | null | undefined,
+  projetoIdFallback?: string | null,
+): SupabaseClient {
+  if (dbAccount && dbAccount.trim() !== '') {
+    return getSupabaseForProject(dbAccount);
+  }
+  if (projetoIdFallback && projetoIdFallback.trim() !== '') {
+    return getSupabaseForProject(projetoIdFallback);
   }
   return getSupabase();
 }
