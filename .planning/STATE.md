@@ -4,8 +4,8 @@ milestone: v2.0
 milestone_name: API Queue System
 status: executing
 stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-04-06T23:16:07.617Z"
-last_activity: 2026-04-06
+last_updated: "2026-04-10T00:00:00.000Z"
+last_activity: 2026-04-10
 progress:
   total_phases: 4
   completed_phases: 3
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-06)
 Phase: 07 (login-page-cookies) — EXECUTING
 Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-04-10 - Completed quick task 260410-mor: multi-tenant Supabase API
+Last activity: 2026-04-10 - Completed quick task 260410-nf7: workers routed via getSupabaseForJob
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -80,9 +80,10 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260410-mor | Refatorar lib/supabase.ts para suportar multi-tenant Supabase via env var SUPABASE_PROJECTS | 2026-04-10 | b52bbc3 | [260410-mor-refatorar-lib-supabase-ts-para-suportar-](./quick/260410-mor-refatorar-lib-supabase-ts-para-suportar-/) |
+| 260410-nf7 | Migrar profile-worker e post-worker para usar getSupabaseForJob (roteamento per-tenant) | 2026-04-10 | 643926a | [260410-nf7-migrar-profile-worker-e-post-worker-para](./quick/260410-nf7-migrar-profile-worker-e-post-worker-para/) |
 
 ## Session Continuity
 
-Last session: 2026-04-06T23:16:07.615Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-04-10T00:00:00.000Z
+Stopped at: Completed quick task 260410-nf7
 Resume file: None
