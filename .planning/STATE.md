@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-06)
 Phase: 07 (login-page-cookies) — EXECUTING
 Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-04-06
+Last activity: 2026-04-10 - Completed quick task 260410-mor: multi-tenant Supabase API
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -74,6 +74,12 @@ None yet.
 ### Blockers/Concerns
 
 None yet.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260410-mor | Refatorar lib/supabase.ts para suportar multi-tenant Supabase via env var SUPABASE_PROJECTS | 2026-04-10 | b52bbc3 | [260410-mor-refatorar-lib-supabase-ts-para-suportar-](./quick/260410-mor-refatorar-lib-supabase-ts-para-suportar-/) |
 
 ## Session Continuity
 
