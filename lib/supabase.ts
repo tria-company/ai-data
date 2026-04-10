@@ -120,3 +120,22 @@ export function getSupabaseAnonKeyForProject(projetoId: string): { url: string; 
   const cfg = getProjectConfig(projetoId);
   return { url: cfg.url, anonKey: cfg.anonKey };
 }
+
+/**
+ * Returns the appropriate Supabase client for a job based on projetoId.
+ *
+ * - If projetoId is a non-empty string: routes to the tenant-specific client
+ *   via getSupabaseForProject().
+ * - If projetoId is null/undefined/empty string: falls back to the legacy
+ *   getSupabase() client (backward compat for jobs enqueued before
+ *   multi-tenant support).
+ *
+ * Use this inside worker job processors where projetoId comes from job.data
+ * and may be null for legacy jobs still in the queue.
+ */
+export function getSupabaseForJob(projetoId: string | null | undefined): SupabaseClient {
+  if (projetoId && projetoId.trim() !== '') {
+    return getSupabaseForProject(projetoId);
+  }
+  return getSupabase();
+}
