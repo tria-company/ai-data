@@ -4,7 +4,7 @@ import { getBrowser } from '../lib/browser';
 import { selectAccount, markAccountInvalid, isCookieError, hasValidAccounts } from '../lib/account-selector';
 import { sendNoAccountsAlert } from '../lib/notifications';
 import { decrypt } from '../lib/encryption';
-import { supabase } from '../lib/supabase';
+import { getSupabaseForJob } from '../lib/supabase';
 import {
   checkIfPrivate,
   extractBio,
@@ -79,6 +79,7 @@ async function scrapeProfile(
   projetoId: string | null,
   maxPosts: number,
 ) {
+  const db = getSupabaseForJob(projetoId);
   // Decrypt cookies
   let cookies: Protocol.Network.CookieParam[] = [];
   const sessionData = account.session_cookies;
@@ -151,7 +152,7 @@ async function scrapeProfile(
     try {
       bio = await extractBio(page);
       if (bio) {
-        await supabase
+        await db
           .from('profile_bio')
           .upsert(
             {
@@ -175,7 +176,7 @@ async function scrapeProfile(
       highlightsData = await extractHighlights(page, cleanUsername);
       if (highlightsData.length > 0) {
         for (const hl of highlightsData) {
-          const { data: hlRows } = await supabase
+          const { data: hlRows } = await db
             .from('profile_highlights')
             .upsert(
               {
@@ -191,7 +192,7 @@ async function scrapeProfile(
 
           // Save cover image as a highlight item
           if (hlRows && hlRows.length > 0 && hl.coverUrl) {
-            await supabase.from('profile_highlight_items').insert({
+            await db.from('profile_highlight_items').insert({
               highlight_id: hlRows[0].id,
               media_url: hl.coverUrl,
               media_type: 'image',
@@ -226,7 +227,7 @@ async function scrapeProfile(
     }));
 
     if (postsPayload.length > 0) {
-      const { error: insertError } = await supabase
+      const { error: insertError } = await db
         .from('scrappers_contents')
         .upsert(postsPayload, {
           onConflict: 'postid',
@@ -267,7 +268,7 @@ async function scrapeProfile(
     // Upsert users_scrapping with completion status
     try {
       const now = new Date().toISOString();
-      let updateQuery = supabase
+      let updateQuery = db
         .from('users_scrapping')
         .update({ status: 'completed', data_ultimo_scrapping: now })
         .eq('user', cleanUsername);
@@ -275,7 +276,7 @@ async function scrapeProfile(
       const { data: updated } = await updateQuery.select('id');
       if (!updated || updated.length === 0) {
         // Row doesn't exist yet — create it
-        await supabase.from('users_scrapping').insert({
+        await db.from('users_scrapping').insert({
           user: cleanUsername,
           ...(projetoId ? { projeto: projetoId } : {}),
           status: 'completed',

@@ -4,7 +4,7 @@ import { getBrowser } from '../lib/browser';
 import { selectAccount, markAccountInvalid, isCookieError, hasValidAccounts } from '../lib/account-selector';
 import { sendNoAccountsAlert } from '../lib/notifications';
 import { decrypt } from '../lib/encryption';
-import { supabase } from '../lib/supabase';
+import { getSupabaseForJob } from '../lib/supabase';
 import {
   extractVideoUrl,
   extractCarouselImages,
@@ -84,6 +84,7 @@ async function scrapePostDetails(
   username: string,
   projetoId: string | null,
 ) {
+  const db = getSupabaseForJob(projetoId);
   // Decrypt cookies
   let cookies: Protocol.Network.CookieParam[] = [];
   const sessionData = account.session_cookies;
@@ -161,7 +162,7 @@ async function scrapePostDetails(
     // Update scrappers_contents if we got new data
     if (Object.keys(updateData).length > 0) {
       updateData.updated_at = new Date().toISOString();
-      const { error } = await supabase
+      const { error } = await db
         .from('scrappers_contents')
         .update(updateData)
         .eq('postid', postId);
@@ -183,7 +184,7 @@ async function scrapePostDetails(
           ...(projetoId ? { projeto: projetoId } : {}),
         }));
 
-        const { error: likesError } = await supabase
+        const { error: likesError } = await db
           .from('post_likes')
           .upsert(likesPayload, {
             onConflict: 'postid,liker_username',
@@ -215,7 +216,7 @@ async function scrapePostDetails(
           ...(projetoId ? { projeto: projetoId } : {}),
         }));
 
-        const { error: commentsError } = await supabase
+        const { error: commentsError } = await db
           .from('post_comments')
           .upsert(commentsPayload, {
             onConflict: 'postid,commenter_username,comment_text',
