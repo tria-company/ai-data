@@ -22,10 +22,11 @@ interface PostJobData {
   isCarousel: boolean;
   username: string;
   projetoId: string | null;
+  dbAccount?: string | null;
 }
 
 async function processPostJob(job: Job<PostJobData>) {
-  const { postId, postUrl, mediaType, isCarousel, username, projetoId } = job.data;
+  const { postId, postUrl, mediaType, isCarousel, username, projetoId, dbAccount } = job.data;
 
   console.log(`[post-worker] Processing job ${job.id} for post ${postId} (@${username})`);
 
@@ -34,7 +35,7 @@ async function processPostJob(job: Job<PostJobData>) {
   let account = await selectAccount();
   while (account) {
     try {
-      const result = await scrapePostDetails(job, account, postId, postUrl, mediaType, isCarousel, username, projetoId);
+      const result = await scrapePostDetails(job, account, postId, postUrl, mediaType, isCarousel, username, projetoId, dbAccount);
       return result;
     } catch (error) {
       if (isCookieError(error)) {
@@ -83,8 +84,9 @@ async function scrapePostDetails(
   isCarousel: boolean,
   username: string,
   projetoId: string | null,
+  dbAccount: string | null | undefined,
 ) {
-  const db = getSupabaseForJob(projetoId);
+  const db = getSupabaseForJob(dbAccount, projetoId);
   // Decrypt cookies
   let cookies: Protocol.Network.CookieParam[] = [];
   const sessionData = account.session_cookies;

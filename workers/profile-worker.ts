@@ -19,11 +19,12 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 interface ProfileJobData {
   username: string;
   projetoId: string | null;
+  dbAccount?: string | null;
   maxPosts?: number;
 }
 
 async function processProfileJob(job: Job<ProfileJobData>) {
-  const { username, projetoId, maxPosts = 50 } = job.data;
+  const { username, projetoId, dbAccount, maxPosts = 50 } = job.data;
   const cleanUsername = username.replace('@', '').trim();
 
   console.log(`[profile-worker] Processing job ${job.id} for @${cleanUsername}`);
@@ -33,7 +34,7 @@ async function processProfileJob(job: Job<ProfileJobData>) {
   let account = await selectAccount();
   while (account) {
     try {
-      const result = await scrapeProfile(job, account, cleanUsername, projetoId, maxPosts);
+      const result = await scrapeProfile(job, account, cleanUsername, projetoId, dbAccount, maxPosts);
       return result;
     } catch (error) {
       if (isCookieError(error)) {
@@ -77,9 +78,10 @@ async function scrapeProfile(
   account: any,
   cleanUsername: string,
   projetoId: string | null,
+  dbAccount: string | null | undefined,
   maxPosts: number,
 ) {
-  const db = getSupabaseForJob(projetoId);
+  const db = getSupabaseForJob(dbAccount, projetoId);
   // Decrypt cookies
   let cookies: Protocol.Network.CookieParam[] = [];
   const sessionData = account.session_cookies;
@@ -252,6 +254,7 @@ async function scrapeProfile(
         isCarousel: post.isCarousel,
         username: cleanUsername,
         projetoId,
+        dbAccount: dbAccount ?? null,
       },
       opts: {
         attempts: 3,
