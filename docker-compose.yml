@@ -84,12 +84,16 @@ services:
       - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - app
+      - dozzle
+      - netdata
     networks:
       - scraper-net
     restart: unless-stopped
 
   dozzle:
     image: amir20/dozzle:latest
+    environment:
+      - DOZZLE_BASE=/logs
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
