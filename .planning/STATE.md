@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: API Queue System
 status: executing
-stopped_at: Completed quick task 260410-ovc
-last_updated: "2026-04-10T21:10:00.000Z"
+stopped_at: Completed quick task 260410-q4f
+last_updated: "2026-04-10T21:53:00.000Z"
 last_activity: 2026-04-10
 progress:
   total_phases: 4
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-06)
 Phase: 07 (login-page-cookies) — EXECUTING
 Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-04-10 - Completed quick task 260410-ovc: nginx SSL config + letsencrypt mounts
+Last activity: 2026-04-10 - Completed quick task 260410-q4f: proxy Dozzle and Netdata via nginx with SSL
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -82,9 +82,10 @@ None yet.
 | 260410-mor | Refatorar lib/supabase.ts para suportar multi-tenant Supabase via env var SUPABASE_PROJECTS | 2026-04-10 | b52bbc3 | [260410-mor-refatorar-lib-supabase-ts-para-suportar-](./quick/260410-mor-refatorar-lib-supabase-ts-para-suportar-/) |
 | 260410-nf7 | Migrar profile-worker e post-worker para usar getSupabaseForJob (roteamento per-tenant) | 2026-04-10 | 643926a | [260410-nf7-migrar-profile-worker-e-post-worker-para](./quick/260410-nf7-migrar-profile-worker-e-post-worker-para/) |
 | 260410-ovc | Fix nginx SSL: mount letsencrypt certs and sync VPS config into git (replaces stale HTTP-only default.conf) | 2026-04-10 | 42f2391 | [260410-ovc-fix-nginx-ssl-mount-letsencrypt-certs-an](./quick/260410-ovc-fix-nginx-ssl-mount-letsencrypt-certs-an/) |
+| 260410-q4f | Proxy Dozzle (/logs/) and Netdata (/netdata/) via nginx with SSL to fix HSTS ERR_SSL_PROTOCOL_ERROR; preserves IP fallback ports 9999/19999 | 2026-04-10 | e03b9b7 | [260410-q4f-proxy-dozzle-e-netdata-via-nginx-com-ssl](./quick/260410-q4f-proxy-dozzle-e-netdata-via-nginx-com-ssl/) |
 
 ## Session Continuity
 
-Last session: 2026-04-10T21:10:00.000Z
-Stopped at: Completed quick task 260410-ovc
+Last session: 2026-04-10T21:53:00.000Z
+Stopped at: Completed quick task 260410-q4f
 Resume file: None
