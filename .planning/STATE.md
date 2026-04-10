@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: API Queue System
 status: executing
-stopped_at: Completed quick task 260410-q4f
-last_updated: "2026-04-10T21:53:00.000Z"
+stopped_at: Completed quick task 260410-qu3
+last_updated: "2026-04-10T22:15:00.000Z"
 last_activity: 2026-04-10
 progress:
   total_phases: 4
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-06)
 Phase: 07 (login-page-cookies) — EXECUTING
 Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-04-10 - Completed quick task 260410-q4f: proxy Dozzle and Netdata via nginx with SSL
+Last activity: 2026-04-10 - Completed quick task 260410-qu3: add db_account field to decouple Supabase credential routing from projetoId
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -83,9 +83,10 @@ None yet.
 | 260410-nf7 | Migrar profile-worker e post-worker para usar getSupabaseForJob (roteamento per-tenant) | 2026-04-10 | 643926a | [260410-nf7-migrar-profile-worker-e-post-worker-para](./quick/260410-nf7-migrar-profile-worker-e-post-worker-para/) |
 | 260410-ovc | Fix nginx SSL: mount letsencrypt certs and sync VPS config into git (replaces stale HTTP-only default.conf) | 2026-04-10 | 42f2391 | [260410-ovc-fix-nginx-ssl-mount-letsencrypt-certs-an](./quick/260410-ovc-fix-nginx-ssl-mount-letsencrypt-certs-an/) |
 | 260410-q4f | Proxy Dozzle (/logs/) and Netdata (/netdata/) via nginx with SSL to fix HSTS ERR_SSL_PROTOCOL_ERROR; preserves IP fallback ports 9999/19999 | 2026-04-10 | e03b9b7 | [260410-q4f-proxy-dozzle-e-netdata-via-nginx-com-ssl](./quick/260410-q4f-proxy-dozzle-e-netdata-via-nginx-com-ssl/) |
+| 260410-qu3 | Add optional db_account field to POST /api/scrape and thread it through workers as dbAccount for credential routing; full backward compat for legacy callers and in-flight jobs | 2026-04-10 | 6cda3ee | [260410-qu3-add-db-account-field-to-request-body-for](./quick/260410-qu3-add-db-account-field-to-request-body-for/) |
 
 ## Session Continuity
 
-Last session: 2026-04-10T21:53:00.000Z
-Stopped at: Completed quick task 260410-q4f
+Last session: 2026-04-10T22:15:00.000Z
+Stopped at: Completed quick task 260410-qu3
 Resume file: None
